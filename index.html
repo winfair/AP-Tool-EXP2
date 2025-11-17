@@ -10,88 +10,97 @@
   :root{--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--mut:#9fb1c7}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:#0b0c10;color:#e5e7eb;font:14px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  /* Full-screen map */
-  #map{position:fixed;inset:0}
-  /* Floating controls */
-  .fab{position:fixed;z-index:1000;background:#111a24;border:1px solid #223040;color:#d8e6f3;border-radius:999px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px}
-  .fab:active{transform:translateY(1px)}
-  #fabStart{top:calc(env(safe-area-inset-top,0px)+12px);left:calc(env(safe-area-inset-left,0px)+12px)}
-  #fabLocate{right:calc(env(safe-area-inset-right,0px)+12px);bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
-  #fabCenter{right:calc(env(safe-area-inset-right,0px)+86px);bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
-  #fabSave{right:calc(env(safe-area-inset-right,0px)+160px);bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
-  /* Status pills */
-  .pill{position:fixed;top:calc(env(safe-area-inset-top,0px)+12px);right:calc(env(safe-area-inset-right,0px)+12px);display:flex;gap:6px;z-index:1000}
-  .pill .tag{font-size:12px;border:1px solid #2b3b4d;padding:2px 8px;border-radius:999px;background:#182028;color:#cbd5e1}
-  .tag.ok{background:#18311e;color:#bff2c6;border-color:#22492a}
-  .tag.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}
-  .tag.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
-  /* Saved list panel */
-  .saved{position:fixed;left:calc(env(safe-area-inset-left,0px)+12px);bottom:calc(env(safe-area-inset-bottom,0px)+76px);z-index:1000;background:#0e1319;border:1px solid #223040;border-radius:10px;max-width:320px;max-height:40vh;overflow:auto;padding:8px 8px;display:none}
-  .saved .row{display:flex;gap:6px;align-items:center;margin:4px 0}
-  .hint{position:fixed;left:calc(env(safe-area-inset-left,0px)+12px);top:calc(env(safe-area-inset-top,0px)+58px);z-index:1000;color:var(--mut);font-size:12px}
-  /* Bottom sheet HUD */
-  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:999;background:#0e1319;border-top:1px solid #1f2833;transform:translateY(0);transition:transform .24s ease}
-  .sheet.collapsed{transform:translateY(calc(100% - 68px))}
-  .sheet .grab{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1f2833}
-  .grab .handle{width:40px;height:4px;border-radius:999px;background:#2b3b4d;margin:0 auto}
-  .hud{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:8px 12px}
+  /* Full-screen map pinned to viewport */
+  #app{position:fixed;inset:0}
+  #map{position:absolute;inset:0;z-index:0}
+  /* Top appbar */
+  .appbar{position:absolute;left:0;right:0;top:0;z-index:1000;display:flex;align-items:center;gap:8px;
+          padding:calc(env(safe-area-inset-top,0px)+8px) 12px 8px 12px;background:rgba(14,19,25,.65);backdrop-filter:blur(8px);
+          border-bottom:1px solid rgba(255,255,255,.06)}
+  .title{font-weight:700;letter-spacing:.3px}
+  .btn{background:#17304a;color:#d6e3f0;border:1px solid #2b3542;border-radius:999px;padding:10px 12px;font-weight:800}
+  .btn:active{transform:translateY(1px)}
+  .hint{color:var(--mut);font-size:12px}
+  .pills{margin-left:auto;display:flex;gap:6px}
+  .pill{font-size:12px;border:1px solid #2b3b4d;padding:2px 8px;border-radius:999px;background:#182028;color:#cbd5e1}
+  .pill.ok{background:#18311e;color:#bff2c6;border-color:#22492a}
+  .pill.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}
+  .pill.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
+  /* Right FAB stack */
+  .fab{position:absolute;right:calc(env(safe-area-inset-right,0px)+12px);z-index:1000;background:#111a24;border:1px solid #223040;color:#d8e6f3;
+       border-radius:999px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+  #fabLocate{bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
+  #fabCenter{bottom:calc(env(safe-area-inset-bottom,0px)+64px)}
+  #fabSave{bottom:calc(env(safe-area-inset-bottom,0px)+116px)}
+  #fabSaved{bottom:calc(env(safe-area-inset-bottom,0px)+168px)}
+  /* Bottom HUD */
+  .hud{position:absolute;left:0;right:0;bottom:0;z-index:900;background:rgba(14,19,25,.78);backdrop-filter:blur(10px);
+       border-top:1px solid rgba(255,255,255,.06);padding:8px 12px}
+  .hud .grid{display:grid;grid-template-columns:180px 1fr;gap:12px;align-items:center}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
   .k{font-size:12px;color:#9fb1c7}.v{font-weight:700}
-  .bars{display:flex;gap:12px;align-items:center;padding:0 12px 12px}
+  @media(max-width:900px){ .stats{grid-template-columns:repeat(2,1fr)} }
   canvas{display:block;background:#0f151c;border:1px solid #1f2833;border-radius:10px}
-  @media (max-width:900px){ .hud{grid-template-columns:repeat(2,1fr)} }
-  /* User arrow tweak */
+  /* Saved list */
+  .saved{position:absolute;left:calc(env(safe-area-inset-left,0px)+12px);bottom:calc(env(safe-area-inset-bottom,0px)+70px);z-index:1000;
+         background:#0e1319;border:1px solid #223040;border-radius:10px;max-width:320px;max-height:40vh;overflow:auto;padding:8px 8px;display:none}
+  .saved .row{display:flex;gap:6px;align-items:center;margin:4px 0}
   .user-arrow svg{filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
 </style>
 </head>
 <body>
-<div id="map"></div>
+<div id="app">
+  <div id="map"></div>
 
-<!-- Floating controls -->
-<button id="fabStart" class="fab">Enable Sensors</button>
-<button id="fabSave" class="fab">Save</button>
-<button id="fabCenter" class="fab">Set Target</button>
-<button id="fabLocate" class="fab">Locate</button>
-
-<!-- Status pills -->
-<div class="pill">
-  <div id="gpsPill" class="tag">gps: idle</div>
-  <div id="oriPill" class="tag">ori: idle</div>
-  <div id="decPill" class="tag">dec: —</div>
-  <div id="lockPill" class="tag">lock: —</div>
-</div>
-<div id="secureHint" class="hint"></div>
-
-<!-- Saved targets overlay -->
-<div id="savedBox" class="saved"></div>
-
-<!-- Bottom sheet HUD -->
-<div id="sheet" class="sheet collapsed">
-  <div class="grab"><div class="handle"></div><div style="flex:1"></div><div id="sheetLock" class="v">—</div></div>
-  <div class="hud">
-    <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
-    <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
-    <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
-    <div><div class="k">Grade</div><div class="v" id="grade">—</div></div>
-
-    <div><div class="k">Distance (2D)</div><div class="v"><span id="dst">—</span> m</div></div>
-    <div><div class="k">3D distance</div><div class="v"><span id="dst3d">—</span> m</div></div>
-    <div><div class="k">Bearing → target</div><div class="v"><span id="brg">—</span>°</div></div>
-    <div><div class="k">Pitch required</div><div class="v"><span id="preq">—</span>°</div></div>
-
-    <div><div class="k">Heading error</div><div class="v"><span id="herr">—</span>°</div></div>
-    <div><div class="k">Pitch error</div><div class="v"><span id="perr">—</span>°</div></div>
-    <div><div class="k">Target Lat</div><div class="v"><input id="tlat" type="number" step="0.000001" style="width:140px;background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:6px;padding:4px 6px"></div></div>
-    <div><div class="k">Target Lon</div><div class="v"><input id="tlon" type="number" step="0.000001" style="width:140px;background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:6px;padding:4px 6px"></div></div>
+  <div class="appbar">
+    <div class="title">AP-Tool</div>
+    <button id="start" class="btn">Enable Sensors</button>
+    <div id="secureHint" class="hint"></div>
+    <div class="pills">
+      <div id="gpsPill" class="pill">gps: idle</div>
+      <div id="oriPill" class="pill">ori: idle</div>
+      <div id="decPill" class="pill">dec: —</div>
+      <div id="lockPill" class="pill">lock: —</div>
+    </div>
   </div>
-  <div class="bars">
-    <canvas id="compass" width="180" height="180"></canvas>
-    <canvas id="pitchBar" width="260" height="44"></canvas>
+
+  <button id="fabSaved" class="fab">Saved</button>
+  <button id="fabSave" class="fab">Save</button>
+  <button id="fabCenter" class="fab">Set Target</button>
+  <button id="fabLocate" class="fab">Locate</button>
+
+  <div id="savedBox" class="saved"></div>
+
+  <div class="hud">
+    <div class="grid">
+      <div>
+        <canvas id="compass" width="180" height="180"></canvas>
+        <div style="height:8px"></div>
+        <canvas id="pitchBar" width="180" height="44"></canvas>
+      </div>
+      <div class="stats">
+        <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
+        <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
+        <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
+        <div><div class="k">Lock</div><div class="v" id="lockTxt">—</div></div>
+
+        <div><div class="k">Distance (2D)</div><div class="v"><span id="dst">—</span> m</div></div>
+        <div><div class="k">3D distance</div><div class="v"><span id="dst3d">—</span> m</div></div>
+        <div><div class="k">Bearing → target</div><div class="v"><span id="brg">—</span>°</div></div>
+        <div><div class="k">Pitch required</div><div class="v"><span id="preq">—</span>°</div></div>
+
+        <div><div class="k">Heading error</div><div class="v"><span id="herr">—</span>°</div></div>
+        <div><div class="k">Pitch error</div><div class="v"><span id="perr">—</span>°</div></div>
+        <div><div class="k">Target Lat</div><div class="v"><input id="tlat" type="number" step="0.000001" style="width:140px;background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:6px;padding:4px 6px"></div></div>
+        <div><div class="k">Target Lon</div><div class="v"><input id="tlon" type="number" step="0.000001" style="width:140px;background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:6px;padding:4px 6px"></div></div>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 (function(){
-  // ===== Math / helpers =====
+  // ---------- math ----------
   const R=6371000,toRad=d=>d*Math.PI/180,toDeg:r=>r*180/Math.PI,n360=d=>((d%360)+360)%360,isF=x=>Number.isFinite(+x);
   const sdiff=(a,b)=>((a-b+540)%360)-180;
   const hb=(la1,lo1,la2,lo2)=>{const A=toRad(la1),B=toRad(la2),dA=toRad(la2-la1),dL=toRad(lo2-lo1);
@@ -100,9 +109,11 @@
     return {dist:R*c, brg:n360(toDeg(Math.atan2(y,x)))}};
   const preq=(vz,dist)=>toDeg(Math.atan2(vz,dist));
   const gkey=(lat,lon)=>[Math.round(lat*4)/4,Math.round(lon*4)/4].join(',');
+
+  // ---------- tolerances ----------
   const TOL_H=3, TOL_P=2, WARN_X=2;
 
-  // ===== State =====
+  // ---------- state ----------
   const st={
     gps:{status:'idle',lat:null,lon:null,alt:null,err:null,lastFix:null,lastCourse:null},
     ori:{status:'idle',headingTrue:null,headingMag:null,pitch:null,err:null,events:0,attached:false},
@@ -111,37 +122,42 @@
     ui:{firstRecenter:false,autoBias:0}
   };
 
-  // ===== Map (full-screen) =====
+  // ---------- elements ----------
+  const $=id=>document.getElementById(id);
+  const el={start:$('start'),secure:$('secureHint'),
+    gpsPill:$('gpsPill'),oriPill:$('oriPill'),decPill:$('decPill'),lockPill:$('lockPill'),
+    tlat:$('tlat'),tlon:$('tlon'),
+    hdg:$('hdg'),pit:$('pit'),dec:$('dec'),dst:$('dst'),dst3d:$('dst3d'),brg:$('brg'),
+    preq:$('preq'),herr:$('herr'),perr:$('perr'),lockTxt:$('lockTxt'),
+    compass:$('compass'),pitchBar:$('pitchBar'),
+    fabLocate:$('fabLocate'),fabCenter:$('fabCenter'),fabSave:$('fabSave'),fabSaved:$('fabSaved'),
+    saved:$('savedBox')
+  };
+
+  // ---------- map ----------
   const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([0,0],2);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
-  // User arrow icon
   const userIcon=L.divIcon({className:'user-arrow',html:`<svg width="42" height="42" viewBox="0 0 42 42" style="transform:translate(-21px,-21px)"><circle cx="21" cy="21" r="8" fill="#1f2a37" stroke="#3b4a5c"/><path d="M21 2 L27 21 L21 17 L15 21 Z" fill="#84cc16" stroke="#cbd5e1" stroke-width=".5"/></svg>`,iconSize:[42,42],iconAnchor:[21,21]});
   const me=L.marker([0,0],{icon:userIcon}).addTo(map);
   const tar=L.marker([0,0],{draggable:true}).addTo(map);
-  let los=L.polyline([], {weight:3,color:'#64748b'}).addTo(map);
+  const los=L.polyline([], {weight:3,color:'#64748b'}).addTo(map);
   tar.on('dragend',()=>{const p=tar.getLatLng(); setTarget(p.lat,p.lng,st.target.alt)});
   map.on('click',e=>setTarget(e.latlng.lat,e.latlng.lng,st.target.alt));
 
-  // ===== Elements =====
-  const $=id=>document.getElementById(id);
-  const el={gpsPill:$('gpsPill'),oriPill:$('oriPill'),decPill:$('decPill'),lockPill:$('lockPill'),
-            secure:$('secureHint'), saved:$('savedBox'), start:$('fabStart'), locate:$('fabLocate'), center:$('fabCenter'), save:$('fabSave'),
-            sheet:$('sheet'), sheetLock:$('sheetLock'),
-            hdg:$('hdg'),pit:$('pit'),dec:$('dec'),dst:$('dst'),dst3d:$('dst3d'),grade:$('grade'),brg:$('brg'),preq:$('preq'),herr:$('herr'),perr:$('perr'),
-            tlat:$('tlat'),tlon:$('tlon'),comp:$('compass'),pbar:$('pitchBar')};
-
-  // ===== Declination =====
+  // ---------- declination ----------
   let lastDecKey=null;
   function setDecl(val,src){
     st.decl.value=isF(val)?+val:null; st.decl.source=src||null;
     el.dec.textContent=isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—°';
     el.decPill.textContent='dec: '+(isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—')+(src?` (${src})`:'');
-    el.decPill.className='tag '+(isF(st.decl.value)?'ok':'warn');
+    el.decPill.className='pill '+(isF(st.decl.value)?'ok':'warn');
     updateAim(); drawGauges();
   }
   async function fetchDecl(lat,lon,timeoutMs=2500){
     const date=new Date().toISOString().slice(0,10);
     const key='dec:'+date+':'+gkey(lat,lon);
+    // show heuristic immediately (never blocks)
+    const h=((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2; if(st.decl.value==null) setDecl(h,'heuristic');
     try{const c=localStorage.getItem(key); if(c){const v=JSON.parse(c); if(isF(v.value)){ setDecl(+v.value,'cache'); return; }}}catch{}
     const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeoutMs);
     try{const u1=`https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination?lat1=${encodeURIComponent(lat)}&lon1=${encodeURIComponent(lon)}&startYear=${new Date().getUTCFullYear()}&resultFormat=json`;
@@ -151,19 +167,18 @@
       const r2=await fetch(u2,{signal:ctl.signal}); if(r2.ok){const j=await r2.json(); const d=j?.declination;
         if(isF(d)){ setDecl(+d,'Amentum'); localStorage.setItem(key,JSON.stringify({value:+d})); clearTimeout(t); return; }}}catch(_){}
     clearTimeout(t);
-    const d=((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2; setDecl(d,'heuristic');
   }
   function maybeDecl(){ if(isF(st.gps.lat)&&isF(st.gps.lon)){ const k=gkey(st.gps.lat,st.gps.lon); if(k!==lastDecKey||st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon);} } }
 
-  // ===== GPS =====
+  // ---------- GPS ----------
   function setGPS(status,lat,lon,alt,err){
     st.gps={...st.gps,status,lat,lon,alt,err:err||null};
-    el.gpsPill.textContent='gps: '+status; el.gpsPill.className='tag '+(status==='ok'?'ok':status==='requesting'?'warn':'bad');
+    el.gpsPill.textContent='gps: '+status; el.gpsPill.className='pill '+(status==='ok'?'ok':status==='requesting'?'warn':'bad');
     if(isF(lat)&&isF(lon)){ me.setLatLng([lat,lon]); if(!st.ui.firstRecenter){ map.setView([lat,lon],16); st.ui.firstRecenter=true; } }
     renderLOS(); updateAim(); rotateUser();
   }
   function startGPS(){
-    if(!('geolocation'in navigator)){ setGPS('unsupported',null,null,null,'Geo unsupported'); return; }
+    if(!('geolocation' in navigator)){ setGPS('unsupported',null,null,null,'Geo unsupported'); return; }
     setGPS('requesting');
     try{
       navigator.geolocation.watchPosition(pos=>{
@@ -178,19 +193,19 @@
         setGPS('ok',c.latitude,c.longitude,isF(c.altitude)?+c.altitude:null,null);
         maybeDecl();
         maybeAutocal(courseTrue);
-        markStartSuccess(); // if user gets only GPS on desktop, show “Enabled”
+        markStartSuccess(); // show Enabled even if only GPS is available
       },err=>setGPS('error',null,null,null,err?.message||'GPS error'),{enableHighAccuracy:true,maximumAge:1000,timeout:8000});
     }catch(e){ setGPS('error',null,null,null,e?.message||'GPS error') }
   }
 
-  // ===== Orientation =====
+  // ---------- orientation ----------
   function setORI(status,trueH=null,magH=null,pitch=null,err=null){
     st.ori.status=status;
     if(isF(trueH)) st.ori.headingTrue=n360(trueH);
     if(isF(magH))  st.ori.headingMag=n360(magH);
     if(isF(pitch)) st.ori.pitch=Math.max(-90,Math.min(90,pitch));
     st.ori.err=err||null;
-    el.oriPill.textContent='ori: '+status; el.oriPill.className='tag '+(status==='receiving'?'ok':status==='attached'?'warn':status==='requesting'?'warn':'bad');
+    el.oriPill.textContent='ori: '+status; el.oriPill.className='pill '+(status==='receiving'?'ok':status==='attached'?'warn':status==='requesting'?'warn':'bad');
     el.hdg.textContent=isF(st.ori.headingTrue)?Math.round(st.ori.headingTrue)+'°':'—°';
     el.pit.textContent=isF(st.ori.pitch)?Math.round(st.ori.pitch)+'°':'—°';
     rotateUser(); updateAim(); drawGauges();
@@ -199,6 +214,7 @@
     if(st.ori.attached) return; st.ori.attached=true; setORI('attached');
     window.addEventListener('deviceorientationabsolute', onOri, {passive:true});
     window.addEventListener('deviceorientation', onOri, {passive:true});
+    // If no events after 2.5s → mark unsupported (keeps button active to retry)
     setTimeout(()=>{ if(st.ori.events===0 && st.ori.status!=='receiving') setORI('unsupported',null,null,null,st.ori.err); }, 2500);
   }
   function onOri(ev){
@@ -216,7 +232,8 @@
     setORI('requesting');
     const DO=window.DeviceOrientationEvent, DM=window.DeviceMotionEvent;
     try{
-      if(DM && typeof DM.requestPermission==='function'){ try{ DM.requestPermission().then(()=>{}).catch(()=>{}); }catch(_){}} // keep inside click
+      // Must be inside the click gesture on iOS
+      if(DM && typeof DM.requestPermission==='function'){ try{ DM.requestPermission().then(()=>{}).catch(()=>{}); }catch(_){}} 
       if(DO && typeof DO.requestPermission==='function'){
         DO.requestPermission().then(r=>{ if(r==='granted') attachOrientation(); else setORI('denied',null,null,null,'Orientation denied'); })
           .catch(()=> setORI('error',null,null,null,'Orientation error'));
@@ -228,11 +245,11 @@
     if(!isF(st.ori.headingTrue) && isF(st.ori.headingMag) && isF(st.decl.value)){
       const derived=n360(st.ori.headingMag + st.decl.value + st.ui.autoBias);
       const delta=sdiff(courseTrue, derived);
-      st.ui.autoBias = st.ui.autoBias + 0.02*delta; // small correction to cancel residual mag bias
+      st.ui.autoBias = st.ui.autoBias + 0.02*delta; // slow blend to cancel residual bias
     }
   }
 
-  // ===== Target & LOS =====
+  // ---------- target / LOS ----------
   function setTarget(lat,lon,alt){
     st.target.lat=isF(+lat)?+lat:null; st.target.lon=isF(+lon)?+lon:null; st.target.alt=isF(+alt)?+alt:null;
     if(isF(st.target.lat)&&isF(st.target.lon)) tar.setLatLng([st.target.lat,st.target.lon]);
@@ -246,25 +263,22 @@
     } else { los.setLatLngs([]); }
   }
 
-  // ===== Guidance =====
+  // ---------- guidance ----------
   function updateAim(){
     const la=st.gps.lat, lo=st.gps.lon, tla=st.target.lat, tlo=st.target.lon;
     const tH=st.ori.headingTrue, pit=st.ori.pitch;
     if(!(isF(la)&&isF(lo)&&isF(tla)&&isF(tlo))){
-      ['dst','dst3d','brg','preq','herr','perr','grade'].forEach(id=>el[id].textContent='—');
+      ['dst','dst3d','brg','preq','herr','perr'].forEach(id=>el[id].textContent='—');
       setLock('—',null); colorLOS('neutral'); return;
     }
     const {dist,brg}=hb(la,lo,tla,tlo);
     const vz=(isF(st.target.alt)&&isF(st.gps.alt))?(st.target.alt-st.gps.alt):null;
     const req=isF(vz)?preq(vz,dist):null;
     const d3=isF(vz)?Math.sqrt(dist*dist+vz*vz):dist;
-    const grade=isF(vz)?(vz/dist*100):null;
-
     el.dst.textContent=Math.round(dist);
     el.dst3d.textContent=isF(d3)?Math.round(d3):'—';
     el.brg.textContent=Math.round(brg);
     el.preq.textContent=isF(req)?req.toFixed(1):'—';
-    el.grade.textContent=isF(grade)?grade.toFixed(1)+'%':'—';
 
     const herr=isF(tH)?sdiff(brg,tH):null;
     const perr=(isF(pit)&&isF(req))?(req-pit):null;
@@ -279,8 +293,8 @@
     drawGauges(brg,req,herr,perr,state);
   }
   function setLock(text,state){
-    el.lockPill.textContent='lock: '+text; el.lockPill.className='tag '+(state==='ok'?'ok':state==='warn'?'warn':'');
-    el.sheetLock.textContent=text;
+    el.lockPill.textContent='lock: '+text; el.lockPill.className='pill '+(state==='ok'?'ok':state==='warn'?'warn':'');
+    el.lockTxt.textContent=text;
   }
   function colorLOS(state){
     const c = state==='ok'?'#22c55e': state==='warn'?'#f59e0b':'#64748b';
@@ -292,16 +306,16 @@
     if(svg && isF(h)) svg.style.transform=`translate(-21px,-21px) rotate(${h}deg)`;
   }
 
-  // ===== Gauges =====
-  const ctxC=el.comp.getContext('2d'), ctxP=el.pbar.getContext('2d');
+  // ---------- gauges ----------
+  const ctxC=el.compass.getContext('2d'), ctxP=el.pitchBar.getContext('2d');
   function drawGauges(bearing=null, reqPitch=null, herr=null, perr=null, state=null){
-    const cw=el.comp.width,ch=el.comp.height,pw=el.pbar.width,ph=el.pbar.height;
-    // Compass
+    const cw=el.compass.width,ch=el.compass.height,pw=el.pitchBar.width,ph=el.pitchBar.height;
     ctxC.clearRect(0,0,cw,ch); const cx=cw/2,cy=ch/2,R=Math.min(cw,ch)*0.45;
     ctxC.strokeStyle='#2a3542'; ctxC.lineWidth=2; ctxC.beginPath(); ctxC.arc(cx,cy,R,0,Math.PI*2); ctxC.stroke();
-    ['N','E','S','W'].forEach((t,k)=>{const ang=k*90*Math.PI/180; ctxC.fillStyle='#cbd5e1'; ctxC.font='12px system-ui'; ctxC.textAlign='center'; ctxC.textBaseline='middle'; ctxC.fillText(t,cx+(R-14)*Math.sin(ang),cy-(R-14)*Math.cos(ang));});
-    if(isF(bearing)){const a=bearing*Math.PI/180; ctxC.strokeStyle='#94a3b8'; ctxC.beginPath(); ctxC.moveTo(cx+(R-2)*Math.sin(a),cy-(R-2)*Math.cos(a)); ctxC.lineTo(cx+(R-16)*Math.sin(a),cy-(R-16)*Math.cos(a)); ctxC.stroke();}
-    if(isF(st.ori.headingTrue)){ const a=st.ori.headingTrue*Math.PI/180; const color=(state==='ok')?'#22c55e':(isF(herr)&&Math.abs(herr)<=TOL_H*WARN_X?'#f59e0b':'#ef4444'); ctxC.fillStyle=color; ctxC.beginPath(); const r0=R-24; ctxC.moveTo(cx,cy); ctxC.lineTo(cx+r0*Math.sin(a-0.06),cy-r0*Math.cos(a-0.06)); ctxC.lineTo(cx+R*Math.sin(a),cy-R*Math.cos(a)); ctxC.lineTo(cx+r0*Math.sin(a+0.06),cy-r0*Math.cos(a+0.06)); ctxC.closePath(); ctxC.fill(); }
+    ['N','E','S','W'].forEach((t,k)=>{const a=k*90*Math.PI/180; ctxC.fillStyle='#cbd5e1'; ctxC.font='12px system-ui'; ctxC.textAlign='center'; ctxC.textBaseline='middle'; ctxC.fillText(t,cx+(R-14)*Math.sin(a),cy-(R-14)*Math.cos(a));});
+    if(isF(bearing)){ const a=bearing*Math.PI/180; ctxC.strokeStyle='#94a3b8'; ctxC.beginPath(); ctxC.moveTo(cx+(R-2)*Math.sin(a),cy-(R-2)*Math.cos(a)); ctxC.lineTo(cx+(R-16)*Math.sin(a),cy-(R-16)*Math.cos(a)); ctxC.stroke(); }
+    if(isF(st.ori.headingTrue)){ const a=st.ori.headingTrue*Math.PI/180; const color=(state==='ok')?'#22c55e':(isF(herr)&&Math.abs(herr)<=TOL_H*WARN_X?'#f59e0b':'#ef4444'); ctxC.fillStyle=color; ctxC.beginPath();
+      const r0=R-24; ctxC.moveTo(cx,cy); ctxC.lineTo(cx+r0*Math.sin(a-0.06),cy-r0*Math.cos(a-0.06)); ctxC.lineTo(cx+R*Math.sin(a),cy-R*Math.cos(a)); ctxC.lineTo(cx+r0*Math.sin(a+0.06),cy-r0*Math.cos(a+0.06)); ctxC.closePath(); ctxC.fill(); }
     // Pitch bar
     ctxP.clearRect(0,0,pw,ph); const mid=ph/2; ctxP.fillStyle='#0c1117'; ctxP.fillRect(8,mid-8,pw-16,16); ctxP.strokeStyle='#2a3542'; ctxP.beginPath(); ctxP.moveTo(8,mid); ctxP.lineTo(pw-8,mid); ctxP.stroke();
     const xFrom=d=>{const t=(Math.max(-90,Math.min(90,d))+90)/180; return 8+t*(pw-16);};
@@ -309,15 +323,15 @@
     if(isF(st.ori.pitch)){ const color=(state==='ok')?'#22c55e':(isF(perr)&&Math.abs(perr)<=TOL_P*WARN_X?'#f59e0b':'#ef4444'); ctxP.fillStyle=color; const x=xFrom(st.ori.pitch); ctxP.fillRect(x-6,mid-10,12,20); }
   }
 
-  // ===== Saved targets =====
+  // ---------- saved targets ----------
   function showSaved(){
     const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
     el.saved.innerHTML='<div class="k" style="margin-bottom:6px">Saved Targets</div>'+list.map((t,i)=>(
       `<div class="row">
-         <button data-a="load" data-i="${i}">LOAD</button>
-         <button data-a="del" data-i="${i}">X</button>
-         <div style="font-size:12px;color:#9fb1c7">${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}</div>
-       </div>`
+        <button data-a="load" data-i="${i}">LOAD</button>
+        <button data-a="del" data-i="${i}">X</button>
+        <div style="font-size:12px;color:#9fb1c7">${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}</div>
+      </div>`
     )).join('');
     el.saved.style.display=list.length?'block':'none';
   }
@@ -328,28 +342,26 @@
     if(a==='del'){ list.splice(i,1); localStorage.setItem('apt_targets',JSON.stringify(list)); showSaved(); }
   });
 
-  // ===== UI wiring =====
-  el.start.onclick=()=>{ // keep synchronous (iOS)
-    const secure = (location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname));
-    el.secure.textContent = secure?'':'Use HTTPS or localhost for sensor access.';
+  // ---------- wiring ----------
+  el.start.onclick=()=>{ // keep within tap for iOS
+    const secure=(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname));
+    el.secure.textContent=secure?'':'Use HTTPS or localhost for sensor access.';
     try{ startOrientationPermission(); }catch(_){}
     try{ startGPS(); }catch(_){}
     el.start.textContent='Enabling…';
   };
   function markStartSuccess(){ el.start.textContent='Sensors Enabled'; }
-  el.locate.onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())); };
-  el.center.onclick=()=>{ const c=map.getCenter(); setTarget(c.lat,c.lng,st.target.alt); };
-  el.save.onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
+  el.fabLocate.onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())); };
+  el.fabCenter.onclick=()=>{ const c=map.getCenter(); setTarget(c.lat,c.lng,st.target.alt); };
+  el.fabSave.onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
     const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
     list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
     localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20))); showSaved(); };
+  el.fabSaved.onclick=()=>{ showSaved(); el.saved.style.display = (el.saved.style.display==='block'?'none':'block'); };
 
   ['tlat','tlon'].forEach(id=>$(id).addEventListener('change',()=>setTarget(el.tlat.value,el.tlon.value,st.target.alt)));
 
-  // Bottom sheet toggle
-  el.sheet.querySelector('.grab').onclick=()=>{ el.sheet.classList.toggle('collapsed'); };
-
-  // ===== Boot =====
+  // ---------- boot ----------
   el.secure.textContent=(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname))?'':'Use HTTPS or localhost for sensor access.';
   try{ const last=JSON.parse(localStorage.getItem('apt_last_target')||'null'); if(last) setTarget(last.lat,last.lon,last.alt); }catch{}
   drawGauges();
