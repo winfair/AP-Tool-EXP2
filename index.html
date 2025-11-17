@@ -1,23 +1,27 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>AP-Tool Mini — Sensors First</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>AP-Tool — Minimal, Accurate, First-Try</title>
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+
 <style>
-  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#94a3b8;--card:#10151b;--line:#1f2833;--btn:#0f172a}
+  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#9fb1c7;--card:#10151b;--line:#1f2833}
   *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .app{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
   header,footer{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#111418;border-block:1px solid var(--line);position:sticky;z-index:10}
-  header{top:0} footer{bottom:0}
-  .title{font-weight:700;letter-spacing:.2px} .grow{flex:1}
+  header{top:0}.title{font-weight:700;letter-spacing:.3px}
   .cta{display:flex;gap:8px;align-items:center}
-  .btn{background:#1b2a41;color:#d6e3f0;border:1px solid #2b3542;border-radius:10px;padding:10px 12px;font-weight:700}
+  .btn{background:#17304a;color:#d6e3f0;border:1px solid #2b3542;border-radius:10px;padding:10px 12px;font-weight:800}
   .btn:active{transform:translateY(1px)} .btn[disabled]{opacity:.6}
   .pill{font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px;color:#cbd5e1;background:#182028}
-  .pill.err{background:#3a1d1d;color:#ffb3b3;border-color:#5b2a2a}
+  .pill.ok{background:#18311e;color:#bff2c6;border-color:#22492a}
+  .pill.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
+  .pill.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}
+  .hint{font-size:12px;color:var(--mut)}
   main{display:grid;gap:8px;padding:8px;overflow:auto}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .hd{padding:8px 10px;border-bottom:1px solid var(--line);color:#cbd5e1;font-weight:600;background:#111418}
@@ -25,12 +29,13 @@
   #map{height:52vh;width:100%;background:#0a0a0a;border-radius:8px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
   .k{font-size:12px;color:var(--mut)} .v{font-weight:700;font-size:18px}
-  input,button{background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:8px;padding:6px 8px}
   .row{display:flex;align-items:center;gap:6px;margin:4px 0}
+  input,button{background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:8px;padding:6px 8px}
   .targets{display:flex;flex-wrap:wrap;gap:6px}
-  .mini{display:flex;gap:10px;align-items:baseline}
-  .mini .item{display:flex;gap:6px;align-items:baseline}
-  .hint{font-size:12px;color:#9fb1c7}
+  .list{display:flex;flex-direction:column;gap:6px}
+  .mini{display:flex;gap:10px;align-items:center}
+  .mini .item{display:flex;gap:6px;align-items:center}
+  footer{bottom:0}
 </style>
 </head>
 <body>
@@ -38,12 +43,13 @@
   <header>
     <div class="title">AP-Tool</div>
     <div class="cta">
-      <button id="enable" class="btn">Enable Sensors</button>
-      <div id="hint" class="hint">Use on <strong>HTTPS</strong> or <strong>localhost</strong> for sensors.</div>
+      <button id="start" class="btn">Enable Sensors</button>
+      <div id="secureHint" class="hint"></div>
     </div>
-    <div class="grow"></div>
-    <div id="gpsPill" class="pill">GPS: idle</div>
-    <div id="oriPill" class="pill">ORI: idle</div>
+    <div style="flex:1"></div>
+    <div id="gpsPill" class="pill">gps: idle</div>
+    <div id="oriPill" class="pill">ori: idle</div>
+    <div id="decPill" class="pill">dec: —</div>
   </header>
 
   <main>
@@ -52,9 +58,9 @@
     <div class="card">
       <div class="hd">HUD</div>
       <div class="bd grid">
-        <div><div class="k">Heading (true)</div><div class="v"><span id="hdg">—</span>°</div></div>
-        <div><div class="k">Pitch</div><div class="v"><span id="pit">—</span>°</div></div>
-        <div><div class="k">Declination</div><div class="v"><span id="dec">—</span>°</div></div>
+        <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
+        <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
+        <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
         <div><div class="k">Distance</div><div class="v"><span id="dst">—</span> m</div></div>
         <div><div class="k">Bearing</div><div class="v"><span id="brg">—</span>°</div></div>
         <div><div class="k">Pitch req</div><div class="v"><span id="preq">—</span>°</div></div>
@@ -66,14 +72,19 @@
       <div class="hd">Target</div>
       <div class="bd grid">
         <div>
-          <div class="row"><label>Lat</label><input id="tlat" type="number" step="0.000001" style="width:140px"></div>
-          <div class="row"><label>Lon</label><input id="tlon" type="number" step="0.000001" style="width:140px"></div>
-          <div class="row"><label>Alt(m)</label><input id="talt" type="number" step="0.1" style="width:140px"></div>
-          <div class="row"><button id="fromPin">Set from map center</button></div>
+          <div class="row"><label>Lat</label><input id="tlat" type="number" step="0.000001" style="width:150px"></div>
+          <div class="row"><label>Lon</label><input id="tlon" type="number" step="0.000001" style="width:150px"></div>
+          <div class="row"><label>Alt(m)</label><input id="talt" type="number" step="0.1" style="width:150px"></div>
+          <div class="row" style="gap:8px;">
+            <button id="fromMap">Set from map center</button>
+            <button id="saveTarget">Save target</button>
+          </div>
         </div>
         <div>
           <div class="k" style="margin-bottom:6px">Quick Targets</div>
-          <div class="targets" id="q"></div>
+          <div class="targets" id="quick"></div>
+          <div class="k" style="margin-top:10px">Saved</div>
+          <div class="list" id="saved"></div>
         </div>
       </div>
     </div>
@@ -81,136 +92,222 @@
 
   <footer>
     <div class="mini">
-      <div class="item"><div class="k">Heading</div><div class="v" id="hdg2">—</div></div>
-      <div class="item"><div class="k">Pitch</div><div class="v" id="pit2">—</div></div>
+      <div class="item"><div class="k">Heading</div><div class="v" id="hdg2">—°</div></div>
+      <div class="item"><div class="k">Pitch</div><div class="v" id="pit2">—°</div></div>
     </div>
-    <div class="grow"></div>
+    <div style="flex:1"></div>
     <button id="recenter">Recenter</button>
   </footer>
 </div>
 
 <script>
 (function(){
-  // ------- math -------
-  const R=6371000,toRad=d=>d*Math.PI/180,toDeg:r=>r*180/Math.PI,n360=d=>((d%360)+360)%360,isF=x=>Number.isFinite(+x);
+  // ===== Utilities / Math =====
+  const R=6371000,toRad=d=>d*Math.PI/180,toDeg=r=>r*180/Math.PI,n360=d=>((d%360)+360)%360,isF=x=>Number.isFinite(+x);
   const hb=(la1,lo1,la2,lo2)=>{const A=toRad(la1),B=toRad(la2),dA=toRad(la2-la1),dL=toRad(lo2-lo1);
-    const a=Math.sin(dA/2)**2+Math.cos(A)*Math.cos(B)*Math.sin(dL/2)**2; const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    const a=Math.sin(dA/2)**2+Math.cos(A)*Math.cos(B)*Math.sin(dL/2)**2, c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     const y=Math.sin(dL)*Math.cos(B), x=Math.cos(A)*Math.sin(B)-Math.sin(A)*Math.cos(B)*Math.cos(dL);
     return {dist:R*c, brg:n360(toDeg(Math.atan2(y,x)))}};
   const preq=(vz,dist)=>toDeg(Math.atan2(vz,dist));
-  const decl=(lat,lon)=>!isF(lat)||!isF(lon)?null:((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2;
+  const geokey=(lat,lon)=>[Math.round(lat*4)/4,Math.round(lon*4)/4].join(',');
 
-  // ------- state -------
-  const st={lat:null,lon:null,alt:null, hdgT:null,hdgM:null,pit:null, dec:null, t:{lat:null,lon:null,alt:null}, recentered:false};
-  const $=id=>document.getElementById(id), set=(id,v)=>($(id).textContent=(v??'—'));
-  const pill=(id,t,err)=>{const el=$(id); el.textContent=t; el.classList.toggle('err',!!err)};
+  // ===== State =====
+  const st={
+    gps:{status:'idle',lat:null,lon:null,alt:null,err:null},
+    ori:{status:'idle',headingTrue:null,headingMag:null,pitch:null,err:null},
+    decl:{value:null,source:null},
+    target:{lat:null,lon:null,alt:null},
+    ui:{firstRecenterDone:false}
+  };
+  const el=id=>document.getElementById(id);
 
-  // ------- map -------
+  // ===== Map =====
   const map=L.map('map',{zoomControl:true}).setView([0,0],2);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
   const me=L.marker([0,0]).addTo(map), tar=L.marker([0,0],{draggable:true}).addTo(map);
-  tar.on('dragend',()=>{const p=tar.getLatLng(); setT(p.lat,p.lng,$('talt').value) });
-  map.on('click',e=>setT(e.latlng.lat,e.latlng.lng,st.t.alt));
+  tar.on('dragend',()=>{const p=tar.getLatLng(); setTarget(p.lat,p.lng,st.target.alt)});
+  map.on('click',e=>setTarget(e.latlng.lat,e.latlng.lng,st.target.alt));
 
-  // ------- ui wiring -------
-  ['tlat','tlon','talt'].forEach(id=>$(id).addEventListener('change',()=>setT($('tlat').value,$('tlon').value,$('talt').value)));
-  $('fromPin').onclick=()=>{const c=map.getCenter(); setT(c.lat,c.lng,$('talt').value)};
-  $('recenter').onclick=()=>{if(isF(st.lat)&&isF(st.lon)) map.setView([st.lat,st.lon],Math.max(15,map.getZoom()))};
-
-  // CTA: one click starts both permissions-sensitive flows.
-  $('enable').onclick=async()=>{
-    await enableOrientation(); // needs user gesture on iOS
-    startGPS();                // some UAs prefer starting from gesture as well
-    $('enable').disabled=true; $('enable').textContent='Enabled';
-  };
-
-  // Quick targets
-  [{n:'Zero',a:[0,0,0]},{n:'SF',a:[37.7749,-122.4194,0]},{n:'Seattle',a:[47.6062,-122.3321,0]},{n:'NYC',a:[40.7128,-74.0060,0]}]
-    .forEach(p=>{const b=document.createElement('button');b.textContent=p.n;b.onclick=()=>setT(...p.a); $('q').appendChild(b)});
-
-  function setT(lat,lon,alt){
-    st.t.lat=isF(+lat)?+lat:null; st.t.lon=isF(+lon)?+lon:null; st.t.alt=isF(+alt)?+alt:null;
-    $('tlat').value=st.t.lat??''; $('tlon').value=st.t.lon??''; $('talt').value=st.t.alt??'';
-    if(isF(st.t.lat)&&isF(st.t.lon)) tar.setLatLng([st.t.lat,st.t.lon]);
-    aim();
+  // ===== Declination =====
+  async function fetchDecl(lat,lon,timeoutMs=2500){
+    const date=new Date().toISOString().slice(0,10);
+    const cacheKey='dec:'+date+':'+geokey(lat,lon);
+    try{const c=localStorage.getItem(cacheKey); if(c){const v=JSON.parse(c); if(isF(v.value)) { setDecl(v.value,'cache'); return }}}catch{}
+    const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeoutMs);
+    try{
+      // NOAA Geomag (JSON, often CORS-enabled). If blocked, falls through.
+      const u1=`https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination?lat1=${encodeURIComponent(lat)}&lon1=${encodeURIComponent(lon)}&startYear=${new Date().getUTCFullYear()}&resultFormat=json`;
+      const r1=await fetch(u1,{signal:ctl.signal}); if(r1.ok){const j=await r1.json();
+        const d=j?.result?.[0]?.declination; if(isF(d)){ setDecl(+d,'NOAA'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }
+      }
+    }catch(_){}
+    try{
+      // Amentum Global Magnet (community endpoint)
+      const u2=`https://globalmagnet.amentum.io/declination?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&date=${date}`;
+      const r2=await fetch(u2,{signal:ctl.signal}); if(r2.ok){const j=await r2.json();
+        const d=j?.declination; if(isF(d)){ setDecl(+d,'Amentum'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }
+      }
+    }catch(_){}
+    clearTimeout(t);
+    // Tiny heuristic fallback
+    const d=((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2;
+    setDecl(d,'heuristic');
+  }
+  function setDecl(val,source){
+    st.decl.value=isF(val)?+val:null; st.decl.source=source||null;
+    el('dec').textContent=isF(st.decl.value)?st.decl.value.toFixed(1)+'°':('—');
+    const pill=el('decPill'); pill.textContent='dec: '+(isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—')+(source?` (${source})`:'');
+    pill.className='pill '+(isF(st.decl.value)?'ok':'warn');
+    updateAim();
   }
 
-  // ------- sensors: GPS -------
+  // ===== Sensors: GPS =====
   function startGPS(){
-    if(!('geolocation'in navigator)){pill('gpsPill','GPS: unsupported',1);return}
-    pill('gpsPill','GPS: requesting');
+    if(!('geolocation'in navigator)){ setGPS('unsupported',null,null,null,'Geolocation unsupported'); return; }
+    setGPS('requesting');
     try{
       navigator.geolocation.watchPosition(pos=>{
         const c=pos.coords;
-        st.lat=c.latitude; st.lon=c.longitude; st.alt=isF(c.altitude)?+c.altitude:null;
-        me.setLatLng([st.lat,st.lon]);
-        st.dec=decl(st.lat,st.lon); set('dec',isF(st.dec)?(+st.dec).toFixed(1):'—');
-        pill('gpsPill','GPS: ok');
-        if(!st.recentered){ map.setView([st.lat,st.lon],16); st.recentered=true; }
-        aim();
-      },e=>pill('gpsPill','GPS: error',1),{enableHighAccuracy:true,maximumAge:1000,timeout:8000});
-    }catch{pill('gpsPill','GPS: error',1)}
+        setGPS('ok',c.latitude,c.longitude,isF(c.altitude)?+c.altitude:null,null);
+        if(!st.ui.firstRecenterDone && isF(st.gps.lat)&&isF(st.gps.lon)){ map.setView([st.gps.lat,st.gps.lon],16); st.ui.firstRecenterDone=true; }
+        // (Re)compute declination on first fix and when moving > ~10km
+        if(isF(st.gps.lat)&&isF(st.gps.lon)) maybeUpdateDecl();
+      },err=>setGPS('error',null,null,null,err?.message||'GPS error'),{enableHighAccuracy:true,maximumAge:1000,timeout:8000});
+    }catch(e){ setGPS('error',null,null,null,e?.message||'GPS error') }
+  }
+  let lastDecKey=null;
+  function maybeUpdateDecl(){
+    const k=geokey(st.gps.lat,st.gps.lon);
+    if(k!==lastDecKey || st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon); }
+  }
+  function setGPS(status,lat,lon,alt,err){
+    st.gps={status,lat,lon,alt,err:err||null};
+    const gp=el('gpsPill'); gp.textContent='gps: '+status; gp.className='pill '+(status==='ok'?'ok':status==='error'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
+    if(isF(lat)&&isF(lon)) me.setLatLng([lat,lon]);
+    updateAim();
   }
 
-  // ------- sensors: ORIENTATION -------
-  async function enableOrientation(){
-    pill('oriPill','ORI: requesting');
-    const D=window.DeviceOrientationEvent||window.webkitDeviceOrientationEvent;
-    if(!D){pill('oriPill','ORI: unsupported',1);return}
+  // ===== Sensors: Orientation =====
+  function setORI(status, trueH=null, magH=null, pitch=null, err=null){
+    st.ori={status,headingTrue:isF(trueH)?n360(trueH):null,headingMag:isF(magH)?n360(magH):null,pitch:isF(pitch)?Math.max(-90,Math.min(90,pitch)):null,err:err||null};
+    const op=el('oriPill'); op.textContent='ori: '+status; op.className='pill '+(status==='listening'?'ok':status==='error'?'bad':status==='denied'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
+    const ht=st.ori.headingTrue, pt=st.ori.pitch;
+    el('hdg').textContent=isF(ht)?Math.round(ht)+'°':'—°';
+    el('pit').textContent=isF(pt)?Math.round(pt)+'°':'—°';
+    el('hdg2').textContent=el('hdg').textContent; el('pit2').textContent=el('pit').textContent;
+    updateAim();
+  }
+
+  async function startOrientation(){
+    setORI('requesting');
+    const DO=window.DeviceOrientationEvent, DM=window.DeviceMotionEvent;
     try{
-      if(typeof D.requestPermission==='function'){
-        const res=await D.requestPermission();
-        if(res!=='granted'){pill('oriPill','ORI: denied',1);return}
-      }
-      attachOri(); pill('oriPill','ORI: ok');
-    }catch{pill('oriPill','ORI: error',1)}
+      if(DM && typeof DM.requestPermission==='function'){ try{ const r=await DM.requestPermission(); if(r!=='granted') { /* continue */ } }catch(_){} }
+      if(DO && typeof DO.requestPermission==='function'){ try{ const r=await DO.requestPermission(); if(r!=='granted'){ setORI('denied',null,null,null,'Orientation permission denied'); return; } }catch(_){ setORI('error',null,null,null,'Orientation permission error'); } }
+      attachOrientation();
+    }catch(_){ attachOrientation(); }
   }
 
-  function attachOri(){
+  function attachOrientation(){
     if(window._oriOn)return; window._oriOn=1;
-    window.addEventListener('deviceorientation',ev=>{
-      let hMag=null,hTrue=null,p=null;
-      if(typeof ev.webkitCompassHeading==='number' && isF(ev.webkitCompassHeading)){
-        // iOS: magnetic heading
-        hMag=n360(ev.webkitCompassHeading);
-      } else if(typeof ev.alpha==='number' && isF(ev.alpha)){
-        // Many UAs: alpha ~ heading; if absolute, treat as true; else treat as magnetic-like
-        if(ev.absolute===true) hTrue=n360(ev.alpha); else hMag=n360(ev.alpha);
-      }
-      if(typeof ev.beta==='number' && isF(ev.beta)) p=Math.max(-90,Math.min(90,ev.beta));
-      st.pit=isF(p)?p:null;
-
-      // Convert between mag/true using declination when available
-      if(isF(hTrue)){ st.hdgT=hTrue; st.hdgM=isF(st.dec)?n360(hTrue-st.dec):null; }
-      else if(isF(hMag)){ st.hdgM=hMag; st.hdgT=isF(st.dec)?n360(hMag+st.dec):null; }
-      else { st.hdgT=st.hdgM=null; }
-
-      hud(); aim();
-    }, { once:false });
+    // Absolute first (often true heading)
+    window.addEventListener('deviceorientationabsolute', onOri, {passive:true});
+    // Fallback general event
+    window.addEventListener('deviceorientation', onOri, {passive:true});
+    setORI('listening');
   }
 
-  // ------- HUD + AIM -------
-  function hud(){
-    set('hdg',isF(st.hdgT)?Math.round(st.hdgT):'—');
-    set('pit',isF(st.pit)?Math.round(st.pit):'—');
-    $('hdg2').textContent=$('hdg').textContent;
-    $('pit2').textContent=$('pit').textContent;
+  function onOri(ev){
+    // true heading preference
+    let trueH=null, magH=null, pitch=null;
+    if(isF(ev.beta)) pitch=ev.beta;
+    if(isF(ev.webkitCompassHeading)){ magH=n360(ev.webkitCompassHeading); }
+    else if(ev.absolute===true && isF(ev.alpha)){ trueH=n360(ev.alpha); }
+    else if(isF(ev.alpha)){ magH=n360(ev.alpha); }
+
+    // derive true if only mag available and we have declination
+    if(!isF(trueH) && isF(magH) && isF(st.decl.value)) trueH=n360(magH + st.decl.value);
+    setORI('listening', trueH, magH, pitch, null);
   }
 
-  function aim(){
-    if(!(isF(st.lat)&&isF(st.lon)&&isF(st.t.lat)&&isF(st.t.lon)&&isF(st.hdgT))){
-      set('dst','—'); set('brg','—'); set('preq','—'); set('off','—'); return;
+  // ===== Target / Elevation =====
+  function setTarget(lat,lon,alt){
+    st.target.lat=isF(+lat)?+lat:null; st.target.lon=isF(+lon)?+lon:null; st.target.alt=isF(+alt)?+alt:null;
+    el('tlat').value=st.target.lat??''; el('tlon').value=st.target.lon??''; el('talt').value=st.target.alt??'';
+    if(isF(st.target.lat)&&isF(st.target.lon)) tar.setLatLng([st.target.lat,st.target.lon]);
+    updateAim();
+  }
+  async function fetchElevation(lat,lon){
+    try{
+      const u=`https://api.open-meteo.com/v1/elevation?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`;
+      const r=await fetch(u); if(!r.ok) return;
+      const j=await r.json(); const e=(j?.elevation?.[0]); if(isF(e)) { st.target.alt=+e; el('talt').value=st.target.alt; updateAim(); }
+    }catch(_){}
+  }
+
+  // ===== HUD / Aim =====
+  function updateAim(){
+    const gl=st.gps.lat, glon=st.gps.lon, tl=st.target.lat, tln=st.target.lon;
+    const trueH=st.ori.headingTrue, pitch=st.ori.pitch;
+    if(!(isF(gl)&&isF(glon)&&isF(tl)&&isF(tln))){
+      el('dst').textContent='—'; el('brg').textContent='—'; el('preq').textContent='—'; el('off').textContent='—'; return;
     }
-    const {dist,brg}=hb(st.lat,st.lon,st.t.lat,st.t.lon);
-    const vz=(isF(st.t.alt)&&isF(st.alt))?(st.t.alt-st.alt):null;
-    set('dst',Math.round(dist));
-    set('brg',Math.round(brg));
-    set('preq',isF(vz)?preq(vz,dist).toFixed(1):'—');
-    set('off',Math.round(n360(brg-st.hdgT)));
+    const {dist,brg}=hb(gl,glon,tl,tln);
+    const vz=(isF(st.target.alt)&&isF(st.gps.alt))?(st.target.alt-st.gps.alt):null;
+    el('dst').textContent=Math.round(dist);
+    el('brg').textContent=Math.round(brg);
+    el('preq').textContent=isF(vz)?preq(vz,dist).toFixed(1):'—';
+    el('off').textContent=isF(trueH)?Math.round(n360(brg-trueH)):'—';
   }
 
-  // ------- boot (idle until user clicks "Enable Sensors") -------
-  setT(null,null,null); hud(); aim();
+  // ===== UI wiring =====
+  // Inputs
+  ['tlat','tlon','talt'].forEach(id=>el(id).addEventListener('change',()=>setTarget(el('tlat').value,el('tlon').value,el('talt').value)));
+  el('fromMap').onclick=()=>{const c=map.getCenter(); setTarget(c.lat,c.lng,el('talt').value); fetchElevation(c.lat,c.lng)};
+  el('saveTarget').onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
+    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
+    list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
+    localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20)));
+    renderSaved();
+  };
+  el('recenter').onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())) };
+
+  // Quick & Saved
+  const quicks=[['Zero',0,0,0],['SF',37.7749,-122.4194,0],['Seattle',47.6062,-122.3321,0],['NYC',40.7128,-74.0060,0]];
+  function renderQuick(){ const q=el('quick'); q.innerHTML=''; quicks.forEach(([n,la,lo,al])=>{const b=document.createElement('button'); b.textContent=n; b.onclick=()=>setTarget(la,lo,al); q.appendChild(b);});}
+  function renderSaved(){ const s=el('saved'); s.innerHTML=''; const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
+    list.forEach((t,i)=>{const row=document.createElement('div'); row.style.display='flex'; row.style.gap='6px'; row.style.alignItems='center';
+      const btn=document.createElement('button'); btn.textContent='LOAD'; btn.onclick=()=>setTarget(t.lat,t.lon,t.alt);
+      const del=document.createElement('button'); del.textContent='X'; del.onclick=()=>{ list.splice(i,1); localStorage.setItem('apt_targets',JSON.stringify(list)); renderSaved(); };
+      const meta=document.createElement('div'); meta.textContent=`${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}`;
+      meta.style.fontSize='12px'; meta.style.color='#9fb1c7';
+      row.append(btn,del,meta); s.appendChild(row); });
+  }
+
+  // Start CTA — keep everything synchronous in the click stack for iOS
+  el('start').onclick=async ()=>{
+    try{
+      // Secure context hint
+      const sc = (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1');
+      el('secureHint').textContent = sc ? '' : 'Use HTTPS or localhost for sensor access.';
+      // Request permissions in the same gesture
+      await startOrientation(); // iOS-friendly
+      startGPS();
+      el('start').disabled=true; el('start').textContent='Sensors Enabled';
+    }catch(_){
+      // keep enabled for retry
+      el('start').disabled=false; el('start').textContent='Enable Sensors';
+    }
+  };
+
+  // Initialize
+  renderQuick(); renderSaved();
+  setTarget(null,null,null);
+  (function mirror(){ const m=new MutationObserver(()=>{ el('hdg2').textContent=el('hdg').textContent; el('pit2').textContent=el('pit').textContent;});
+    m.observe(el('hdg'),{childList:true}); m.observe(el('pit'),{childList:true}); })();
+
+  // If already secure, show nice status
+  el('secureHint').textContent = (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1') ? '' : 'Use HTTPS or localhost for sensors.';
 })();
 </script>
 </body>
