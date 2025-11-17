@@ -3,183 +3,182 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>AP-Tool — Field Pointer</title>
+<title>AP-Tool — Map Pointer</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 <style>
-  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#9fb1c7;--card:#10151b;--line:#1f2833;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
-  *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-  .app{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
-  header,footer{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#111418;border-block:1px solid var(--line);position:sticky;z-index:10}
-  header{top:0}.title{font-weight:700;letter-spacing:.3px}
-  .btn{background:#17304a;color:#d6e3f0;border:1px solid #2b3542;border-radius:10px;padding:10px 12px;font-weight:800}
-  .btn:active{transform:translateY(1px)} .btn[disabled]{opacity:.6}
-  .pill{font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px;color:#cbd5e1;background:#182028}
-  .ok{background:#18311e;color:#bff2c6;border-color:#22492a}.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
-  .hint{font-size:12px;color:var(--mut)}
-  main{display:grid;gap:8px;padding:8px;overflow:auto}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .hd{padding:8px 10px;border-bottom:1px solid var(--line);color:#cbd5e1;font-weight:600;background:#111418}
-  .bd{padding:8px 10px}
-  #map{height:46vh;width:100%;background:#0a0a0a;border-radius:8px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
-  .k{font-size:12px;color:var(--mut)} .v{font-weight:700;font-size:18px}
-  .row{display:flex;align-items:center;gap:6px;margin:4px 0}
-  input,button{background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:8px;padding:6px 8px}
-  .targets{display:flex;flex-wrap:wrap;gap:6px}
-  .list{display:flex;flex-direction:column;gap:6px}
-  .mini{display:flex;gap:10px;align-items:center}
-  .mini .item{display:flex;gap:6px;align-items:center}
-  .lock{font-weight:800}
-  .lock.ok{color:var(--ok)} .lock.warn{color:var(--warn)} .lock.bad{color:var(--bad)}
-  .gauges{display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:center}
+  :root{--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--mut:#9fb1c7}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#0b0c10;color:#e5e7eb;font:14px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  /* Full-screen map */
+  #map{position:fixed;inset:0}
+  /* Floating controls */
+  .fab{position:fixed;z-index:1000;background:#111a24;border:1px solid #223040;color:#d8e6f3;border-radius:999px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px}
+  .fab:active{transform:translateY(1px)}
+  #fabStart{top:calc(env(safe-area-inset-top,0px)+12px);left:calc(env(safe-area-inset-left,0px)+12px)}
+  #fabLocate{right:calc(env(safe-area-inset-right,0px)+12px);bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
+  #fabCenter{right:calc(env(safe-area-inset-right,0px)+86px);bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
+  #fabSave{right:calc(env(safe-area-inset-right,0px)+160px);bottom:calc(env(safe-area-inset-bottom,0px)+12px)}
+  /* Status pills */
+  .pill{position:fixed;top:calc(env(safe-area-inset-top,0px)+12px);right:calc(env(safe-area-inset-right,0px)+12px);display:flex;gap:6px;z-index:1000}
+  .pill .tag{font-size:12px;border:1px solid #2b3b4d;padding:2px 8px;border-radius:999px;background:#182028;color:#cbd5e1}
+  .tag.ok{background:#18311e;color:#bff2c6;border-color:#22492a}
+  .tag.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}
+  .tag.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
+  /* Saved list panel */
+  .saved{position:fixed;left:calc(env(safe-area-inset-left,0px)+12px);bottom:calc(env(safe-area-inset-bottom,0px)+76px);z-index:1000;background:#0e1319;border:1px solid #223040;border-radius:10px;max-width:320px;max-height:40vh;overflow:auto;padding:8px 8px;display:none}
+  .saved .row{display:flex;gap:6px;align-items:center;margin:4px 0}
+  .hint{position:fixed;left:calc(env(safe-area-inset-left,0px)+12px);top:calc(env(safe-area-inset-top,0px)+58px);z-index:1000;color:var(--mut);font-size:12px}
+  /* Bottom sheet HUD */
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:999;background:#0e1319;border-top:1px solid #1f2833;transform:translateY(0);transition:transform .24s ease}
+  .sheet.collapsed{transform:translateY(calc(100% - 68px))}
+  .sheet .grab{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1f2833}
+  .grab .handle{width:40px;height:4px;border-radius:999px;background:#2b3b4d;margin:0 auto}
+  .hud{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:8px 12px}
+  .k{font-size:12px;color:#9fb1c7}.v{font-weight:700}
+  .bars{display:flex;gap:12px;align-items:center;padding:0 12px 12px}
   canvas{display:block;background:#0f151c;border:1px solid #1f2833;border-radius:10px}
+  @media (max-width:900px){ .hud{grid-template-columns:repeat(2,1fr)} }
+  /* User arrow tweak */
+  .user-arrow svg{filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="title">AP-Tool</div>
-    <button id="start" class="btn">Enable Sensors</button>
-    <div id="secureHint" class="hint"></div>
-    <div style="flex:1"></div>
-    <div id="gpsPill" class="pill">gps: idle</div>
-    <div id="oriPill" class="pill">ori: idle</div>
-    <div id="decPill" class="pill">dec: —</div>
-    <div id="lockPill" class="pill">lock: —</div>
-  </header>
+<div id="map"></div>
 
-  <main>
-    <div class="card"><div class="hd">Map</div><div class="bd"><div id="map"></"></div></div></div>
+<!-- Floating controls -->
+<button id="fabStart" class="fab">Enable Sensors</button>
+<button id="fabSave" class="fab">Save</button>
+<button id="fabCenter" class="fab">Set Target</button>
+<button id="fabLocate" class="fab">Locate</button>
 
-    <div class="card">
-      <div class="hd">Guidance</div>
-      <div class="bd gauges">
-        <div>
-          <canvas id="compass" width="260" height="260"></canvas>
-          <div class="row" style="margin-top:8px;"><canvas id="pitch" width="260" height="56"></canvas></div>
-        </div>
-        <div class="grid">
-          <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
-          <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
-          <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
-          <div><div class="k">Distance (2D)</div><div class="v"><span id="dst">—</span> m</div></div>
-          <div><div class="k">3D distance</div><div class="v"><span id="dst3d">—</span> m</div></div>
-          <div><div class="k">Grade</div><div class="v"><span id="grade">—</span></div></div>
-          <div><div class="k">Bearing to target</div><div class="v"><span id="brg">—</span>°</div></div>
-          <div><div class="k">Pitch required</div><div class="v"><span id="preq">—</span>°</div></div>
-          <div><div class="k">Heading error</div><div class="v"><span id="herr">—</span>°</div></div>
-          <div><div class="k">Pitch error</div><div class="v"><span id="perr">—</span>°</div></div>
-          <div><div class="k">Lock</div><div id="lockTxt" class="v lock">—</div></div>
-        </div>
-      </div>
-    </div>
+<!-- Status pills -->
+<div class="pill">
+  <div id="gpsPill" class="tag">gps: idle</div>
+  <div id="oriPill" class="tag">ori: idle</div>
+  <div id="decPill" class="tag">dec: —</div>
+  <div id="lockPill" class="tag">lock: —</div>
+</div>
+<div id="secureHint" class="hint"></div>
 
-    <div class="card">
-      <div class="hd">Target</div>
-      <div class="bd grid">
-        <div>
-          <div class="row"><label>Lat</label><input id="tlat" type="number" step="0.000001" style="width:150px"></div>
-          <div class="row"><label>Lon</label><input id="tlon" type="number" step="0.000001" style="width:150px"></div>
-          <div class="row"><label>Alt(m)</label><input id="talt" type="number" step="0.1" style="width:150px"></div>
-          <div class="row" style="gap:8px;">
-            <button id="fromMap">Set from map center</button>
-            <button id="saveTarget">Save target</button>
-          </div>
-        </div>
-        <div>
-          <div class="k" style="margin-bottom:6px">Quick Targets</div>
-          <div class="targets" id="quick"></div>
-          <div class="k" style="margin-top:10px">Saved</div>
-          <div class="list" id="saved"></div>
-        </div>
-      </div>
-    </div>
-  </main>
+<!-- Saved targets overlay -->
+<div id="savedBox" class="saved"></div>
 
-  <footer>
-    <div class="mini">
-      <div class="item"><div class="k">Heading</div><div class="v" id="hdg2">—°</div></div>
-      <div class="item"><div class="k">Pitch</div><div class="v" id="pit2">—°</div></div>
-    </div>
-    <div style="flex:1"></div>
-    <button id="recenter">Recenter</button>
-  </footer>
+<!-- Bottom sheet HUD -->
+<div id="sheet" class="sheet collapsed">
+  <div class="grab"><div class="handle"></div><div style="flex:1"></div><div id="sheetLock" class="v">—</div></div>
+  <div class="hud">
+    <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
+    <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
+    <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
+    <div><div class="k">Grade</div><div class="v" id="grade">—</div></div>
+
+    <div><div class="k">Distance (2D)</div><div class="v"><span id="dst">—</span> m</div></div>
+    <div><div class="k">3D distance</div><div class="v"><span id="dst3d">—</span> m</div></div>
+    <div><div class="k">Bearing → target</div><div class="v"><span id="brg">—</span>°</div></div>
+    <div><div class="k">Pitch required</div><div class="v"><span id="preq">—</span>°</div></div>
+
+    <div><div class="k">Heading error</div><div class="v"><span id="herr">—</span>°</div></div>
+    <div><div class="k">Pitch error</div><div class="v"><span id="perr">—</span>°</div></div>
+    <div><div class="k">Target Lat</div><div class="v"><input id="tlat" type="number" step="0.000001" style="width:140px;background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:6px;padding:4px 6px"></div></div>
+    <div><div class="k">Target Lon</div><div class="v"><input id="tlon" type="number" step="0.000001" style="width:140px;background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:6px;padding:4px 6px"></div></div>
+  </div>
+  <div class="bars">
+    <canvas id="compass" width="180" height="180"></canvas>
+    <canvas id="pitchBar" width="260" height="44"></canvas>
+  </div>
 </div>
 
 <script>
 (function(){
   // ===== Math / helpers =====
-  const R=6371000, toRad=d=>d*Math.PI/180, toDeg=r=>r*180/Math.PI, n360=d=>((d%360)+360)%360, isF=x=>Number.isFinite(+x);
-  const sdiff=(a,b)=>((a-b+540)%360)-180; // signed (-180..+180)
+  const R=6371000,toRad=d=>d*Math.PI/180,toDeg:r=>r*180/Math.PI,n360=d=>((d%360)+360)%360,isF=x=>Number.isFinite(+x);
+  const sdiff=(a,b)=>((a-b+540)%360)-180;
   const hb=(la1,lo1,la2,lo2)=>{const A=toRad(la1),B=toRad(la2),dA=toRad(la2-la1),dL=toRad(lo2-lo1);
     const a=Math.sin(dA/2)**2+Math.cos(A)*Math.cos(B)*Math.sin(dL/2)**2, c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     const y=Math.sin(dL)*Math.cos(B), x=Math.cos(A)*Math.sin(B)-Math.sin(A)*Math.cos(B)*Math.cos(dL);
     return {dist:R*c, brg:n360(toDeg(Math.atan2(y,x)))}};
   const preq=(vz,dist)=>toDeg(Math.atan2(vz,dist));
   const gkey=(lat,lon)=>[Math.round(lat*4)/4,Math.round(lon*4)/4].join(',');
-
-  // ===== Tolerances =====
-  const TOL_HEAD=3, TOL_PITCH=2, WARN_X=2;
+  const TOL_H=3, TOL_P=2, WARN_X=2;
 
   // ===== State =====
   const st={
-    gps:{status:'idle',lat:null,lon:null,alt:null,err:null},
+    gps:{status:'idle',lat:null,lon:null,alt:null,err:null,lastFix:null,lastCourse:null},
     ori:{status:'idle',headingTrue:null,headingMag:null,pitch:null,err:null,events:0,attached:false},
     decl:{value:null,source:null},
     target:{lat:null,lon:null,alt:null},
-    ui:{firstRecenter:false}
+    ui:{firstRecenter:false,autoBias:0}
   };
-  const $=id=>document.getElementById(id);
 
-  // ===== Map =====
-  const map=L.map('map',{zoomControl:true}).setView([0,0],2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
-  const me=L.marker([0,0]).addTo(map), tar=L.marker([0,0],{draggable:true}).addTo(map);
-  let los=L.polyline([], {weight:2}).addTo(map);
+  // ===== Map (full-screen) =====
+  const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([0,0],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+  // User arrow icon
+  const userIcon=L.divIcon({className:'user-arrow',html:`<svg width="42" height="42" viewBox="0 0 42 42" style="transform:translate(-21px,-21px)"><circle cx="21" cy="21" r="8" fill="#1f2a37" stroke="#3b4a5c"/><path d="M21 2 L27 21 L21 17 L15 21 Z" fill="#84cc16" stroke="#cbd5e1" stroke-width=".5"/></svg>`,iconSize:[42,42],iconAnchor:[21,21]});
+  const me=L.marker([0,0],{icon:userIcon}).addTo(map);
+  const tar=L.marker([0,0],{draggable:true}).addTo(map);
+  let los=L.polyline([], {weight:3,color:'#64748b'}).addTo(map);
   tar.on('dragend',()=>{const p=tar.getLatLng(); setTarget(p.lat,p.lng,st.target.alt)});
   map.on('click',e=>setTarget(e.latlng.lat,e.latlng.lng,st.target.alt));
 
+  // ===== Elements =====
+  const $=id=>document.getElementById(id);
+  const el={gpsPill:$('gpsPill'),oriPill:$('oriPill'),decPill:$('decPill'),lockPill:$('lockPill'),
+            secure:$('secureHint'), saved:$('savedBox'), start:$('fabStart'), locate:$('fabLocate'), center:$('fabCenter'), save:$('fabSave'),
+            sheet:$('sheet'), sheetLock:$('sheetLock'),
+            hdg:$('hdg'),pit:$('pit'),dec:$('dec'),dst:$('dst'),dst3d:$('dst3d'),grade:$('grade'),brg:$('brg'),preq:$('preq'),herr:$('herr'),perr:$('perr'),
+            tlat:$('tlat'),tlon:$('tlon'),comp:$('compass'),pbar:$('pitchBar')};
+
   // ===== Declination =====
   let lastDecKey=null;
-  function setDecl(val,source){
-    st.decl.value=isF(val)?+val:null; st.decl.source=source||null;
-    $('dec').textContent=isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—°';
-    const pill=$('decPill'); pill.textContent='dec: '+(isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—')+(source?` (${source})`:'');
-    pill.className='pill '+(isF(st.decl.value)?'ok':'warn');
-    draw(); updateAim();
+  function setDecl(val,src){
+    st.decl.value=isF(val)?+val:null; st.decl.source=src||null;
+    el.dec.textContent=isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—°';
+    el.decPill.textContent='dec: '+(isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—')+(src?` (${src})`:'');
+    el.decPill.className='tag '+(isF(st.decl.value)?'ok':'warn');
+    updateAim(); drawGauges();
   }
   async function fetchDecl(lat,lon,timeoutMs=2500){
     const date=new Date().toISOString().slice(0,10);
-    const cacheKey='dec:'+date+':'+gkey(lat,lon);
-    try{const c=localStorage.getItem(cacheKey); if(c){const v=JSON.parse(c); if(isF(v.value)){ setDecl(+v.value,'cache'); return; }}}catch{}
+    const key='dec:'+date+':'+gkey(lat,lon);
+    try{const c=localStorage.getItem(key); if(c){const v=JSON.parse(c); if(isF(v.value)){ setDecl(+v.value,'cache'); return; }}}catch{}
     const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeoutMs);
     try{const u1=`https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination?lat1=${encodeURIComponent(lat)}&lon1=${encodeURIComponent(lon)}&startYear=${new Date().getUTCFullYear()}&resultFormat=json`;
       const r1=await fetch(u1,{signal:ctl.signal}); if(r1.ok){const j=await r1.json(); const d=j?.result?.[0]?.declination;
-        if(isF(d)){ setDecl(+d,'NOAA'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }} }catch(_){}
+        if(isF(d)){ setDecl(+d,'NOAA'); localStorage.setItem(key,JSON.stringify({value:+d})); clearTimeout(t); return; }}}catch(_){}
     try{const u2=`https://globalmagnet.amentum.io/declination?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&date=${date}`;
       const r2=await fetch(u2,{signal:ctl.signal}); if(r2.ok){const j=await r2.json(); const d=j?.declination;
-        if(isF(d)){ setDecl(+d,'Amentum'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }} }catch(_){}
+        if(isF(d)){ setDecl(+d,'Amentum'); localStorage.setItem(key,JSON.stringify({value:+d})); clearTimeout(t); return; }}}catch(_){}
     clearTimeout(t);
     const d=((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2; setDecl(d,'heuristic');
   }
-  function maybeDecl(){ if(isF(st.gps.lat)&&isF(st.gps.lon)){ const k=gkey(st.gps.lat,st.gps.lon); if(k!==lastDecKey||st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon); } } }
+  function maybeDecl(){ if(isF(st.gps.lat)&&isF(st.gps.lon)){ const k=gkey(st.gps.lat,st.gps.lon); if(k!==lastDecKey||st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon);} } }
 
   // ===== GPS =====
   function setGPS(status,lat,lon,alt,err){
-    st.gps={status,lat,lon,alt,err:err||null};
-    const pill=$('gpsPill'); pill.textContent='gps: '+status; pill.className='pill '+(status==='ok'?'ok':status==='error'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
+    st.gps={...st.gps,status,lat,lon,alt,err:err||null};
+    el.gpsPill.textContent='gps: '+status; el.gpsPill.className='tag '+(status==='ok'?'ok':status==='requesting'?'warn':'bad');
     if(isF(lat)&&isF(lon)){ me.setLatLng([lat,lon]); if(!st.ui.firstRecenter){ map.setView([lat,lon],16); st.ui.firstRecenter=true; } }
-    draw(); updateAim(); renderLOS();
+    renderLOS(); updateAim(); rotateUser();
   }
   function startGPS(){
     if(!('geolocation'in navigator)){ setGPS('unsupported',null,null,null,'Geo unsupported'); return; }
     setGPS('requesting');
     try{
       navigator.geolocation.watchPosition(pos=>{
-        const c=pos.coords;
+        const c=pos.coords, now=Date.now();
+        let courseTrue=isF(c.heading)?n360(c.heading):null;
+        if(!isF(courseTrue) && st.gps.lastFix){
+          const moved=hb(st.gps.lastFix.lat,st.gps.lastFix.lon,c.latitude,c.longitude);
+          if(moved.dist>5) courseTrue=moved.brg;
+        }
+        st.gps.lastFix={lat:c.latitude,lon:c.longitude,t:now};
+        if(isF(courseTrue)) st.gps.lastCourse=courseTrue;
         setGPS('ok',c.latitude,c.longitude,isF(c.altitude)?+c.altitude:null,null);
         maybeDecl();
+        maybeAutocal(courseTrue);
+        markStartSuccess(); // if user gets only GPS on desktop, show “Enabled”
       },err=>setGPS('error',null,null,null,err?.message||'GPS error'),{enableHighAccuracy:true,maximumAge:1000,timeout:8000});
     }catch(e){ setGPS('error',null,null,null,e?.message||'GPS error') }
   }
@@ -187,23 +186,20 @@
   // ===== Orientation =====
   function setORI(status,trueH=null,magH=null,pitch=null,err=null){
     st.ori.status=status;
-    if(isF(trueH)) st.ori.headingTrue=n360(trueH); if(isF(magH)) st.ori.headingMag=n360(magH);
-    st.ori.pitch=isF(pitch)?Math.max(-90,Math.min(90,pitch)):st.ori.pitch;
+    if(isF(trueH)) st.ori.headingTrue=n360(trueH);
+    if(isF(magH))  st.ori.headingMag=n360(magH);
+    if(isF(pitch)) st.ori.pitch=Math.max(-90,Math.min(90,pitch));
     st.ori.err=err||null;
-    const op=$('oriPill'); op.textContent='ori: '+status; op.className='pill '+(status==='receiving'?'ok':status==='attached'?'warn':status==='error'?'bad':status==='denied'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
-    $('hdg').textContent=isF(st.ori.headingTrue)?Math.round(st.ori.headingTrue)+'°':'—°';
-    $('pit').textContent=isF(st.ori.pitch)?Math.round(st.ori.pitch)+'°':'—°';
-    $('hdg2').textContent=$('hdg').textContent; $('pit2').textContent=$('pit').textContent;
-    draw(); updateAim();
+    el.oriPill.textContent='ori: '+status; el.oriPill.className='tag '+(status==='receiving'?'ok':status==='attached'?'warn':status==='requesting'?'warn':'bad');
+    el.hdg.textContent=isF(st.ori.headingTrue)?Math.round(st.ori.headingTrue)+'°':'—°';
+    el.pit.textContent=isF(st.ori.pitch)?Math.round(st.ori.pitch)+'°':'—°';
+    rotateUser(); updateAim(); drawGauges();
   }
   function attachOrientation(){
-    if(st.ori.attached) return;
-    st.ori.attached=true;
+    if(st.ori.attached) return; st.ori.attached=true; setORI('attached');
     window.addEventListener('deviceorientationabsolute', onOri, {passive:true});
     window.addEventListener('deviceorientation', onOri, {passive:true});
-    setORI('attached'); // only “receiving” once we see events
-    // Fallback: if no events after 2s, mark unsupported
-    setTimeout(()=>{ if(st.ori.events===0 && st.ori.status!=='receiving') setORI('unsupported',null,null,null,st.ori.err); }, 2000);
+    setTimeout(()=>{ if(st.ori.events===0 && st.ori.status!=='receiving') setORI('unsupported',null,null,null,st.ori.err); }, 2500);
   }
   function onOri(ev){
     st.ori.events++;
@@ -212,47 +208,51 @@
     if(isF(ev.webkitCompassHeading)) mH=n360(ev.webkitCompassHeading);
     else if(ev.absolute===true && isF(ev.alpha)) tH=n360(ev.alpha);
     else if(isF(ev.alpha)) mH=n360(ev.alpha);
-    if(!isF(tH) && isF(mH) && isF(st.decl.value)) tH=n360(mH+st.decl.value);
+    if(!isF(tH) && isF(mH) && isF(st.decl.value)) tH=n360(mH + st.decl.value + st.ui.autoBias);
     setORI('receiving',tH,mH,p,null);
-    // Success → reflect on CTA
-    markStartSuccessful();
+    markStartSuccess();
   }
   function startOrientationPermission(){
     setORI('requesting');
     const DO=window.DeviceOrientationEvent, DM=window.DeviceMotionEvent;
     try{
-      if(DM && typeof DM.requestPermission==='function'){ try{ DM.requestPermission().then(()=>{}).catch(()=>{}); }catch(_){}} // fire within click
+      if(DM && typeof DM.requestPermission==='function'){ try{ DM.requestPermission().then(()=>{}).catch(()=>{}); }catch(_){}} // keep inside click
       if(DO && typeof DO.requestPermission==='function'){
-        DO.requestPermission().then(res=>{ if(res==='granted'){ attachOrientation(); } else { setORI('denied',null,null,null,'Orientation denied'); } })
+        DO.requestPermission().then(r=>{ if(r==='granted') attachOrientation(); else setORI('denied',null,null,null,'Orientation denied'); })
           .catch(()=> setORI('error',null,null,null,'Orientation error'));
       } else { attachOrientation(); }
     }catch(_){ attachOrientation(); }
   }
+  function maybeAutocal(courseTrue){
+    if(!isF(courseTrue)) return;
+    if(!isF(st.ori.headingTrue) && isF(st.ori.headingMag) && isF(st.decl.value)){
+      const derived=n360(st.ori.headingMag + st.decl.value + st.ui.autoBias);
+      const delta=sdiff(courseTrue, derived);
+      st.ui.autoBias = st.ui.autoBias + 0.02*delta; // small correction to cancel residual mag bias
+    }
+  }
 
-  // ===== Target / Elevation =====
+  // ===== Target & LOS =====
   function setTarget(lat,lon,alt){
     st.target.lat=isF(+lat)?+lat:null; st.target.lon=isF(+lon)?+lon:null; st.target.alt=isF(+alt)?+alt:null;
-    $('tlat').value=st.target.lat??''; $('tlon').value=st.target.lon??''; $('talt').value=st.target.alt??'';
     if(isF(st.target.lat)&&isF(st.target.lon)) tar.setLatLng([st.target.lat,st.target.lon]);
-    updateAim(); renderLOS();
+    el.tlat.value=st.target.lat??''; el.tlon.value=st.target.lon??'';
+    renderLOS(); updateAim();
+    try{localStorage.setItem('apt_last_target',JSON.stringify(st.target));}catch{}
   }
-  async function fetchElevation(lat,lon){
-    try{const u=`https://api.open-meteo.com/v1/elevation?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`;
-      const r=await fetch(u); if(!r.ok) return; const j=await r.json(); const e=(j?.elevation?.[0]); if(isF(e)){ st.target.alt=+e; $('talt').value=st.target.alt; updateAim(); }}catch(_){}
-  }
-
-  // ===== Guidance / Aim =====
   function renderLOS(){
     if(isF(st.gps.lat)&&isF(st.gps.lon)&&isF(st.target.lat)&&isF(st.target.lon)){
       los.setLatLngs([[st.gps.lat,st.gps.lon],[st.target.lat,st.target.lon]]);
     } else { los.setLatLngs([]); }
   }
+
+  // ===== Guidance =====
   function updateAim(){
     const la=st.gps.lat, lo=st.gps.lon, tla=st.target.lat, tlo=st.target.lon;
-    const trueH=st.ori.headingTrue, pitch=st.ori.pitch;
+    const tH=st.ori.headingTrue, pit=st.ori.pitch;
     if(!(isF(la)&&isF(lo)&&isF(tla)&&isF(tlo))){
-      ['dst','dst3d','brg','preq','herr','perr','grade'].forEach(id=>$(id).textContent='—');
-      setLock('—',null); draw(); return;
+      ['dst','dst3d','brg','preq','herr','perr','grade'].forEach(id=>el[id].textContent='—');
+      setLock('—',null); colorLOS('neutral'); return;
     }
     const {dist,brg}=hb(la,lo,tla,tlo);
     const vz=(isF(st.target.alt)&&isF(st.gps.alt))?(st.target.alt-st.gps.alt):null;
@@ -260,109 +260,99 @@
     const d3=isF(vz)?Math.sqrt(dist*dist+vz*vz):dist;
     const grade=isF(vz)?(vz/dist*100):null;
 
-    $('dst').textContent=Math.round(dist);
-    $('dst3d').textContent=isF(d3)?Math.round(d3):'—';
-    $('brg').textContent=Math.round(brg);
-    $('preq').textContent=isF(req)?req.toFixed(1):'—';
-    $('grade').textContent=isF(grade)?grade.toFixed(1)+'%':'—';
+    el.dst.textContent=Math.round(dist);
+    el.dst3d.textContent=isF(d3)?Math.round(d3):'—';
+    el.brg.textContent=Math.round(brg);
+    el.preq.textContent=isF(req)?req.toFixed(1):'—';
+    el.grade.textContent=isF(grade)?grade.toFixed(1)+'%':'—';
 
-    const herr=isF(trueH)?sdiff(brg,trueH):null;
-    const perr=(isF(pitch)&&isF(req))?(req-pitch):null;
-    $('herr').textContent=isF(herr)?herr.toFixed(1):'—';
-    $('perr').textContent=isF(perr)?perr.toFixed(1):'—';
+    const herr=isF(tH)?sdiff(brg,tH):null;
+    const perr=(isF(pit)&&isF(req))?(req-pit):null;
+    el.herr.textContent=isF(herr)?herr.toFixed(1):'—';
+    el.perr.textContent=isF(perr)?perr.toFixed(1):'—';
 
-    const okH=isF(herr)&&Math.abs(herr)<=TOL_HEAD;
-    const warnH=isF(herr)&&Math.abs(herr)<=TOL_HEAD*WARN_X;
-    const okP=isF(perr)&&Math.abs(perr)<=TOL_PITCH;
-    const warnP=isF(perr)&&Math.abs(perr)<=TOL_PITCH*WARN_X;
+    const okH=isF(herr)&&Math.abs(herr)<=TOL_H, warnH=isF(herr)&&Math.abs(herr)<=TOL_H*WARN_X;
+    const okP=isF(perr)&&Math.abs(perr)<=TOL_P, warnP=isF(perr)&&Math.abs(perr)<=TOL_P*WARN_X;
     const state=(okH&&okP)?'ok':((warnH&&warnP)?'warn':'bad');
     setLock((state==='ok')?'LOCK':'ALIGN',state);
-    draw(brg,req,herr,perr,state);
+    colorLOS(state);
+    drawGauges(brg,req,herr,perr,state);
   }
-
   function setLock(text,state){
-    const pill=$('lockPill'); pill.textContent='lock: '+text;
-    pill.className='pill '+(state==='ok'?'ok':state==='warn'?'warn':'');
-    const t=$('lockTxt'); t.textContent=text; t.className='v lock '+(state||'');
+    el.lockPill.textContent='lock: '+text; el.lockPill.className='tag '+(state==='ok'?'ok':state==='warn'?'warn':'');
+    el.sheetLock.textContent=text;
+  }
+  function colorLOS(state){
+    const c = state==='ok'?'#22c55e': state==='warn'?'#f59e0b':'#64748b';
+    los.setStyle({color:c});
+  }
+  function rotateUser(){
+    const h=st.ori.headingTrue;
+    const svg=me.getElement()?.querySelector('svg');
+    if(svg && isF(h)) svg.style.transform=`translate(-21px,-21px) rotate(${h}deg)`;
   }
 
   // ===== Gauges =====
-  const ctxC=$('compass').getContext('2d'), ctxP=$('pitch').getContext('2d');
-  function draw(bearing=null, reqPitch=null, herr=null, perr=null, state=null){
-    drawCompass(ctxC, $('compass').width, $('compass').height, st.ori.headingTrue, bearing, herr, state);
-    drawPitch(ctxP, $('pitch').width, $('pitch').height, st.ori.pitch, reqPitch, perr, state);
+  const ctxC=el.comp.getContext('2d'), ctxP=el.pbar.getContext('2d');
+  function drawGauges(bearing=null, reqPitch=null, herr=null, perr=null, state=null){
+    const cw=el.comp.width,ch=el.comp.height,pw=el.pbar.width,ph=el.pbar.height;
+    // Compass
+    ctxC.clearRect(0,0,cw,ch); const cx=cw/2,cy=ch/2,R=Math.min(cw,ch)*0.45;
+    ctxC.strokeStyle='#2a3542'; ctxC.lineWidth=2; ctxC.beginPath(); ctxC.arc(cx,cy,R,0,Math.PI*2); ctxC.stroke();
+    ['N','E','S','W'].forEach((t,k)=>{const ang=k*90*Math.PI/180; ctxC.fillStyle='#cbd5e1'; ctxC.font='12px system-ui'; ctxC.textAlign='center'; ctxC.textBaseline='middle'; ctxC.fillText(t,cx+(R-14)*Math.sin(ang),cy-(R-14)*Math.cos(ang));});
+    if(isF(bearing)){const a=bearing*Math.PI/180; ctxC.strokeStyle='#94a3b8'; ctxC.beginPath(); ctxC.moveTo(cx+(R-2)*Math.sin(a),cy-(R-2)*Math.cos(a)); ctxC.lineTo(cx+(R-16)*Math.sin(a),cy-(R-16)*Math.cos(a)); ctxC.stroke();}
+    if(isF(st.ori.headingTrue)){ const a=st.ori.headingTrue*Math.PI/180; const color=(state==='ok')?'#22c55e':(isF(herr)&&Math.abs(herr)<=TOL_H*WARN_X?'#f59e0b':'#ef4444'); ctxC.fillStyle=color; ctxC.beginPath(); const r0=R-24; ctxC.moveTo(cx,cy); ctxC.lineTo(cx+r0*Math.sin(a-0.06),cy-r0*Math.cos(a-0.06)); ctxC.lineTo(cx+R*Math.sin(a),cy-R*Math.cos(a)); ctxC.lineTo(cx+r0*Math.sin(a+0.06),cy-r0*Math.cos(a+0.06)); ctxC.closePath(); ctxC.fill(); }
+    // Pitch bar
+    ctxP.clearRect(0,0,pw,ph); const mid=ph/2; ctxP.fillStyle='#0c1117'; ctxP.fillRect(8,mid-8,pw-16,16); ctxP.strokeStyle='#2a3542'; ctxP.beginPath(); ctxP.moveTo(8,mid); ctxP.lineTo(pw-8,mid); ctxP.stroke();
+    const xFrom=d=>{const t=(Math.max(-90,Math.min(90,d))+90)/180; return 8+t*(pw-16);};
+    if(isF(reqPitch)){ ctxP.strokeStyle='#94a3b8'; const x=xFrom(reqPitch); ctxP.beginPath(); ctxP.moveTo(x,mid-14); ctxP.lineTo(x,mid+14); ctxP.stroke(); }
+    if(isF(st.ori.pitch)){ const color=(state==='ok')?'#22c55e':(isF(perr)&&Math.abs(perr)<=TOL_P*WARN_X?'#f59e0b':'#ef4444'); ctxP.fillStyle=color; const x=xFrom(st.ori.pitch); ctxP.fillRect(x-6,mid-10,12,20); }
   }
-  function col(state, err, tol){
-    if(state==='ok') return '#22c55e';
-    if(isF(err)){
-      if(Math.abs(err)<=tol) return '#22c55e';
-      if(Math.abs(err)<=tol*WARN_X) return '#f59e0b';
-    }
-    return '#ef4444';
+
+  // ===== Saved targets =====
+  function showSaved(){
+    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
+    el.saved.innerHTML='<div class="k" style="margin-bottom:6px">Saved Targets</div>'+list.map((t,i)=>(
+      `<div class="row">
+         <button data-a="load" data-i="${i}">LOAD</button>
+         <button data-a="del" data-i="${i}">X</button>
+         <div style="font-size:12px;color:#9fb1c7">${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}</div>
+       </div>`
+    )).join('');
+    el.saved.style.display=list.length?'block':'none';
   }
-  function drawCompass(ctx,w,h,headingTrue,bearing,herr,state){
-    ctx.clearRect(0,0,w,h);
-    const cx=w/2, cy=h/2, R=Math.min(w,h)*0.42;
-    ctx.strokeStyle='#2a3542'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
-    ctx.strokeStyle='#1e2630'; ctx.beginPath(); ctx.arc(cx,cy,R*0.6,0,Math.PI*2); ctx.stroke();
-    ctx.save(); ctx.translate(cx,cy);
-    for(let i=0;i<36;i++){ const ang=i*10*Math.PI/180; const r1=R, r2=R-(i%3===0?10:5);
-      ctx.beginPath(); ctx.moveTo(r1*Math.sin(ang), -r1*Math.cos(ang)); ctx.lineTo(r2*Math.sin(ang), -r2*Math.cos(ang));
-      ctx.strokeStyle='#334155'; ctx.stroke();
-    }
-    ['N','E','S','W'].forEach((t,k)=>{ const ang=k*90*Math.PI/180; ctx.fillStyle='#cbd5e1'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(t,(R-18)*Math.sin(ang),-(R-18)*Math.cos(ang)); });
-    if(isF(bearing)){ const a=n360(bearing)*Math.PI/180; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=3; ctx.beginPath();
-      ctx.moveTo((R-4)*Math.sin(a),-(R-4)*Math.cos(a)); ctx.lineTo((R-18)*Math.sin(a),-(R-18)*Math.cos(a)); ctx.stroke(); }
-    if(isF(headingTrue)){ const a=headingTrue*Math.PI/180; ctx.fillStyle=col(state,herr,TOL_HEAD); ctx.beginPath();
-      const r0=R-30; ctx.moveTo(0,0); ctx.lineTo(r0*Math.sin(a-0.06),-r0*Math.cos(a-0.06));
-      ctx.lineTo(R*Math.sin(a),-R*Math.cos(a)); ctx.lineTo(r0*Math.sin(a+0.06),-r0*Math.cos(a+0.06)); ctx.closePath(); ctx.fill(); }
-    ctx.restore();
-  }
-  function drawPitch(ctx,w,h,pitch,req,perr,state){
-    ctx.clearRect(0,0,w,h);
-    ctx.fillStyle='#0c1117'; ctx.fillRect(8,h/2-10,w-16,20);
-    ctx.strokeStyle='#2a3542'; ctx.beginPath(); const mid=h/2; ctx.moveTo(8,mid); ctx.lineTo(w-8,mid); ctx.stroke();
-    const xFrom=d=>{const t=(Math.max(-90,Math.min(90,d))+90)/180; return 8+t*(w-16); };
-    if(isF(req)){ ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2; const x=xFrom(req); ctx.beginPath(); ctx.moveTo(x,mid-16); ctx.lineTo(x,mid+16); ctx.stroke(); }
-    if(isF(pitch)){ const x=xFrom(pitch); ctx.fillStyle=col(state,perr,TOL_PITCH); ctx.fillRect(x-6,mid-12,12,24); }
-    ctx.fillStyle='#cbd5e1'; ctx.font='10px system-ui'; ctx.textAlign='center'; [-60,-30,0,30,60].forEach(d=>{const x=xFrom(d); ctx.fillText(String(d),x,mid+20);});
-  }
+  el.saved.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return; const i=+b.dataset.i; const a=b.dataset.a;
+    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
+    if(a==='load'){ const t=list[i]; if(t) setTarget(t.lat,t.lon,t.alt); el.saved.style.display='none'; }
+    if(a==='del'){ list.splice(i,1); localStorage.setItem('apt_targets',JSON.stringify(list)); showSaved(); }
+  });
 
   // ===== UI wiring =====
-  ['tlat','tlon','talt'].forEach(id=>$(id).addEventListener('change',()=>setTarget($('tlat').value,$('tlon').value,$('talt').value)));
-  $('fromMap').onclick=()=>{const c=map.getCenter(); setTarget(c.lat,c.lng,$('talt').value); fetchElevation(c.lat,c.lng);};
-  $('saveTarget').onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
-    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]'); list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
-    localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20))); renderSaved(); };
-  $('recenter').onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())) };
-
-  const quicks=[['Zero',0,0,0],['SF',37.7749,-122.4194,0],['Seattle',47.6062,-122.3321,0],['NYC',40.7128,-74.0060,0]];
-  function renderQuick(){ const q=$('quick'); q.innerHTML=''; quicks.forEach(([n,la,lo,al])=>{const b=document.createElement('button'); b.textContent=n; b.onclick=()=>setTarget(la,lo,al); q.appendChild(b);});}
-  function renderSaved(){ const s=$('saved'); s.innerHTML=''; const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
-    list.forEach((t,i)=>{const row=document.createElement('div'); row.style.display='flex'; row.style.gap='6px'; row.style.alignItems='center';
-      const load=document.createElement('button'); load.textContent='LOAD'; load.onclick=()=>setTarget(t.lat,t.lon,t.alt);
-      const del=document.createElement('button'); del.textContent='X'; del.onclick=()=>{ list.splice(i,1); localStorage.setItem('apt_targets',JSON.stringify(list)); renderSaved(); };
-      const meta=document.createElement('div'); meta.textContent=`${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}`; meta.style.fontSize='12px'; meta.style.color='#9fb1c7';
-      row.append(load,del,meta); s.appendChild(row); }); }
-
-  // ===== CTA: keep calls inside this click (iOS gesture) =====
-  function markStartSuccessful(){
-    const b=$('start');
-    b.textContent='Sensors Enabled'; // keep enabled for manual retry if needed
-  }
-  $('start').onclick=()=>{ // one synchronous gesture
-    const secure=(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname));
-    $('secureHint').textContent=secure?'':'Use HTTPS or localhost for sensor access.';
+  el.start.onclick=()=>{ // keep synchronous (iOS)
+    const secure = (location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname));
+    el.secure.textContent = secure?'':'Use HTTPS or localhost for sensor access.';
     try{ startOrientationPermission(); }catch(_){}
     try{ startGPS(); }catch(_){}
-    $('start').textContent='Enabling…'; // will flip to Enabled when first ori event arrives
+    el.start.textContent='Enabling…';
   };
+  function markStartSuccess(){ el.start.textContent='Sensors Enabled'; }
+  el.locate.onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())); };
+  el.center.onclick=()=>{ const c=map.getCenter(); setTarget(c.lat,c.lng,st.target.alt); };
+  el.save.onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
+    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
+    list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
+    localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20))); showSaved(); };
 
-  // Init
-  renderQuick(); renderSaved(); setTarget(null,null,null); draw();
-  const mo=new MutationObserver(()=>{ $('hdg2').textContent=$('hdg').textContent; $('pit2').textContent=$('pit').textContent;});
-  mo.observe($('hdg'),{childList:true}); mo.observe($('pit'),{childList:true});
+  ['tlat','tlon'].forEach(id=>$(id).addEventListener('change',()=>setTarget(el.tlat.value,el.tlon.value,st.target.alt)));
+
+  // Bottom sheet toggle
+  el.sheet.querySelector('.grab').onclick=()=>{ el.sheet.classList.toggle('collapsed'); };
+
+  // ===== Boot =====
+  el.secure.textContent=(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname))?'':'Use HTTPS or localhost for sensor access.';
+  try{ const last=JSON.parse(localStorage.getItem('apt_last_target')||'null'); if(last) setTarget(last.lat,last.lon,last.alt); }catch{}
+  drawGauges();
 })();
 </script>
 </body>
