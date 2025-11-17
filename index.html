@@ -3,31 +3,26 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>AP-Tool — Minimal, Accurate, First-Try</title>
-
+<title>AP-Tool — Field Pointer</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
-
 <style>
-  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#9fb1c7;--card:#10151b;--line:#1f2833}
+  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#9fb1c7;--card:#10151b;--line:#1f2833;--ok:#15a34a;--warn:#f59e0b;--bad:#ef4444}
   *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .app{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
   header,footer{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#111418;border-block:1px solid var(--line);position:sticky;z-index:10}
   header{top:0}.title{font-weight:700;letter-spacing:.3px}
-  .cta{display:flex;gap:8px;align-items:center}
   .btn{background:#17304a;color:#d6e3f0;border:1px solid #2b3542;border-radius:10px;padding:10px 12px;font-weight:800}
   .btn:active{transform:translateY(1px)} .btn[disabled]{opacity:.6}
   .pill{font-size:12px;border:1px solid var(--line);padding:2px 8px;border-radius:999px;color:#cbd5e1;background:#182028}
-  .pill.ok{background:#18311e;color:#bff2c6;border-color:#22492a}
-  .pill.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
-  .pill.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}
+  .ok{background:#18311e;color:#bff2c6;border-color:#22492a}.warn{background:#3a331d;color:#ffe6a0;border-color:#695a2a}.bad{background:#3a1d1d;color:#ffc0c0;border-color:#5b2a2a}
   .hint{font-size:12px;color:var(--mut)}
   main{display:grid;gap:8px;padding:8px;overflow:auto}
   .card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
   .hd{padding:8px 10px;border-bottom:1px solid var(--line);color:#cbd5e1;font-weight:600;background:#111418}
   .bd{padding:8px 10px}
-  #map{height:52vh;width:100%;background:#0a0a0a;border-radius:8px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+  #map{height:46vh;width:100%;background:#0a0a0a;border-radius:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
   .k{font-size:12px;color:var(--mut)} .v{font-weight:700;font-size:18px}
   .row{display:flex;align-items:center;gap:6px;margin:4px 0}
   input,button{background:#121a22;color:#d4dee9;border:1px solid #2b3542;border-radius:8px;padding:6px 8px}
@@ -35,36 +30,50 @@
   .list{display:flex;flex-direction:column;gap:6px}
   .mini{display:flex;gap:10px;align-items:center}
   .mini .item{display:flex;gap:6px;align-items:center}
-  footer{bottom:0}
+  .lock{font-weight:800}
+  .lock.ok{color:var(--ok)} .lock.warn{color:var(--warn)} .lock.bad{color:var(--bad)}
+  .gauges{display:grid;grid-template-columns: 260px 1fr; gap:12px; align-items:center}
+  canvas{display:block;background:#0f151c;border:1px solid #1f2833;border-radius:10px}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <div class="title">AP-Tool</div>
-    <div class="cta">
-      <button id="start" class="btn">Enable Sensors</button>
-      <div id="secureHint" class="hint"></div>
-    </div>
+    <button id="start" class="btn">Enable Sensors</button>
+    <div id="secureHint" class="hint" style="margin-left:6px"></div>
     <div style="flex:1"></div>
     <div id="gpsPill" class="pill">gps: idle</div>
     <div id="oriPill" class="pill">ori: idle</div>
     <div id="decPill" class="pill">dec: —</div>
+    <div id="lockPill" class="pill">lock: —</div>
   </header>
 
   <main>
     <div class="card"><div class="hd">Map</div><div class="bd"><div id="map"></div></div></div>
 
     <div class="card">
-      <div class="hd">HUD</div>
-      <div class="bd grid">
-        <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
-        <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
-        <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
-        <div><div class="k">Distance</div><div class="v"><span id="dst">—</span> m</div></div>
-        <div><div class="k">Bearing</div><div class="v"><span id="brg">—</span>°</div></div>
-        <div><div class="k">Pitch req</div><div class="v"><span id="preq">—</span>°</div></div>
-        <div><div class="k">Heading offset</div><div class="v"><span id="off">—</span>°</div></div>
+      <div class="hd">Guidance</div>
+      <div class="bd gauges">
+        <div>
+          <canvas id="compass" width="260" height="260"></canvas>
+          <div class="row" style="margin-top:8px;">
+            <canvas id="pitch" width="260" height="56"></canvas>
+          </div>
+        </div>
+        <div class="grid">
+          <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
+          <div><div class="k">Pitch</div><div class="v" id="pit">—°</div></div>
+          <div><div class="k">Declination</div><div class="v" id="dec">—°</div></div>
+          <div><div class="k">Distance (2D)</div><div class="v"><span id="dst">—</span> m</div></div>
+          <div><div class="k">3D distance</div><div class="v"><span id="dst3d">—</span> m</div></div>
+          <div><div class="k">Grade</div><div class="v"><span id="grade">—</span></div></div>
+          <div><div class="k">Bearing to target</div><div class="v"><span id="brg">—</span>°</div></div>
+          <div><div class="k">Pitch required</div><div class="v"><span id="preq">—</span>°</div></div>
+          <div><div class="k">Heading error</div><div class="v"><span id="herr">—</span>°</div></div>
+          <div><div class="k">Pitch error</div><div class="v"><span id="perr">—</span>°</div></div>
+          <div><div class="k">Lock</div><div id="lockTxt" class="v lock">—</div></div>
+        </div>
       </div>
     </div>
 
@@ -102,14 +111,20 @@
 
 <script>
 (function(){
-  // ===== Utilities / Math =====
-  const R=6371000,toRad=d=>d*Math.PI/180,toDeg=r=>r*180/Math.PI,n360=d=>((d%360)+360)%360,isF=x=>Number.isFinite(+x);
+  // ===== Math / helpers =====
+  const R=6371000, toRad=d=>d*Math.PI/180, toDeg:r=>r*180/Math.PI, n360=d=>((d%360)+360)%360, isF=x=>Number.isFinite(+x);
+  const sdiff=(a,b)=>{let d=((a-b+540)%360)-180; return d;}; // signed (-180..180) a relative to b
   const hb=(la1,lo1,la2,lo2)=>{const A=toRad(la1),B=toRad(la2),dA=toRad(la2-la1),dL=toRad(lo2-lo1);
     const a=Math.sin(dA/2)**2+Math.cos(A)*Math.cos(B)*Math.sin(dL/2)**2, c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     const y=Math.sin(dL)*Math.cos(B), x=Math.cos(A)*Math.sin(B)-Math.sin(A)*Math.cos(B)*Math.cos(dL);
     return {dist:R*c, brg:n360(toDeg(Math.atan2(y,x)))}};
   const preq=(vz,dist)=>toDeg(Math.atan2(vz,dist));
-  const geokey=(lat,lon)=>[Math.round(lat*4)/4,Math.round(lon*4)/4].join(',');
+  const gkey=(lat,lon)=>[Math.round(lat*4)/4,Math.round(lon*4)/4].join(',');
+
+  // ===== Tolerances =====
+  const TOL_HEAD=3;    // degrees
+  const TOL_PITCH=2;   // degrees
+  const WARN_FACTOR=2; // x tolerance → warn
 
   // ===== State =====
   const st={
@@ -117,197 +132,256 @@
     ori:{status:'idle',headingTrue:null,headingMag:null,pitch:null,err:null},
     decl:{value:null,source:null},
     target:{lat:null,lon:null,alt:null},
-    ui:{firstRecenterDone:false}
+    ui:{firstRecenter:false}
   };
-  const el=id=>document.getElementById(id);
+  const $=id=>document.getElementById(id);
 
   // ===== Map =====
   const map=L.map('map',{zoomControl:true}).setView([0,0],2);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
   const me=L.marker([0,0]).addTo(map), tar=L.marker([0,0],{draggable:true}).addTo(map);
+  let los=L.polyline([], {weight:2}).addTo(map);
   tar.on('dragend',()=>{const p=tar.getLatLng(); setTarget(p.lat,p.lng,st.target.alt)});
   map.on('click',e=>setTarget(e.latlng.lat,e.latlng.lng,st.target.alt));
 
   // ===== Declination =====
-  async function fetchDecl(lat,lon,timeoutMs=2500){
-    const date=new Date().toISOString().slice(0,10);
-    const cacheKey='dec:'+date+':'+geokey(lat,lon);
-    try{const c=localStorage.getItem(cacheKey); if(c){const v=JSON.parse(c); if(isF(v.value)) { setDecl(v.value,'cache'); return }}}catch{}
-    const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeoutMs);
-    try{
-      // NOAA Geomag (JSON, often CORS-enabled). If blocked, falls through.
-      const u1=`https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination?lat1=${encodeURIComponent(lat)}&lon1=${encodeURIComponent(lon)}&startYear=${new Date().getUTCFullYear()}&resultFormat=json`;
-      const r1=await fetch(u1,{signal:ctl.signal}); if(r1.ok){const j=await r1.json();
-        const d=j?.result?.[0]?.declination; if(isF(d)){ setDecl(+d,'NOAA'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }
-      }
-    }catch(_){}
-    try{
-      // Amentum Global Magnet (community endpoint)
-      const u2=`https://globalmagnet.amentum.io/declination?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&date=${date}`;
-      const r2=await fetch(u2,{signal:ctl.signal}); if(r2.ok){const j=await r2.json();
-        const d=j?.declination; if(isF(d)){ setDecl(+d,'Amentum'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }
-      }
-    }catch(_){}
-    clearTimeout(t);
-    // Tiny heuristic fallback
-    const d=((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2;
-    setDecl(d,'heuristic');
-  }
+  let lastDecKey=null;
   function setDecl(val,source){
     st.decl.value=isF(val)?+val:null; st.decl.source=source||null;
-    el('dec').textContent=isF(st.decl.value)?st.decl.value.toFixed(1)+'°':('—');
-    const pill=el('decPill'); pill.textContent='dec: '+(isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—')+(source?` (${source})`:'');
+    $('dec').textContent=isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—°';
+    const pill=$('decPill'); pill.textContent='dec: '+(isF(st.decl.value)?st.decl.value.toFixed(1)+'°':'—')+(source?` (${source})`:'');
     pill.className='pill '+(isF(st.decl.value)?'ok':'warn');
-    updateAim();
+    draw(); updateAim();
   }
+  async function fetchDecl(lat,lon,timeoutMs=2500){
+    const date=new Date().toISOString().slice(0,10);
+    const cacheKey='dec:'+date+':'+gkey(lat,lon);
+    try{const c=localStorage.getItem(cacheKey); if(c){const v=JSON.parse(c); if(isF(v.value)){ setDecl(+v.value,'cache'); return; }}}catch{}
+    const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),timeoutMs);
+    try{const u1=`https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination?lat1=${encodeURIComponent(lat)}&lon1=${encodeURIComponent(lon)}&startYear=${new Date().getUTCFullYear()}&resultFormat=json`;
+      const r1=await fetch(u1,{signal:ctl.signal}); if(r1.ok){const j=await r1.json(); const d=j?.result?.[0]?.declination;
+        if(isF(d)){ setDecl(+d,'NOAA'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }} }catch(_){}
+    try{const u2=`https://globalmagnet.amentum.io/declination?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&date=${date}`;
+      const r2=await fetch(u2,{signal:ctl.signal}); if(r2.ok){const j=await r2.json(); const d=j?.declination;
+        if(isF(d)){ setDecl(+d,'Amentum'); localStorage.setItem(cacheKey,JSON.stringify({value:+d})); clearTimeout(t); return; }} }catch(_){}
+    clearTimeout(t);
+    const d=((lon<-30&&lon>-160)?6:0)+((lon>10&&lon<150)?-6:0)+(lat/90)*2; setDecl(d,'heuristic');
+  }
+  function maybeDecl(){ if(isF(st.gps.lat)&&isF(st.gps.lon)){ const k=gkey(st.gps.lat,st.gps.lon); if(k!==lastDecKey||st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon); } } }
 
   // ===== Sensors: GPS =====
+  function setGPS(status,lat,lon,alt,err){
+    st.gps={status,lat,lon,alt,err:err||null};
+    const pill=$('gpsPill'); pill.textContent='gps: '+status; pill.className='pill '+(status==='ok'?'ok':status==='error'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
+    if(isF(lat)&&isF(lon)){ me.setLatLng([lat,lon]); if(!st.ui.firstRecenter){ map.setView([lat,lon],16); st.ui.firstRecenter=true; } }
+    draw(); updateAim(); renderLOS();
+  }
   function startGPS(){
-    if(!('geolocation'in navigator)){ setGPS('unsupported',null,null,null,'Geolocation unsupported'); return; }
+    if(!('geolocation'in navigator)){ setGPS('unsupported',null,null,null,'Geo unsupported'); return; }
     setGPS('requesting');
     try{
       navigator.geolocation.watchPosition(pos=>{
         const c=pos.coords;
         setGPS('ok',c.latitude,c.longitude,isF(c.altitude)?+c.altitude:null,null);
-        if(!st.ui.firstRecenterDone && isF(st.gps.lat)&&isF(st.gps.lon)){ map.setView([st.gps.lat,st.gps.lon],16); st.ui.firstRecenterDone=true; }
-        // (Re)compute declination on first fix and when moving > ~10km
-        if(isF(st.gps.lat)&&isF(st.gps.lon)) maybeUpdateDecl();
+        maybeDecl();
       },err=>setGPS('error',null,null,null,err?.message||'GPS error'),{enableHighAccuracy:true,maximumAge:1000,timeout:8000});
     }catch(e){ setGPS('error',null,null,null,e?.message||'GPS error') }
   }
-  let lastDecKey=null;
-  function maybeUpdateDecl(){
-    const k=geokey(st.gps.lat,st.gps.lon);
-    if(k!==lastDecKey || st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon); }
-  }
-  function setGPS(status,lat,lon,alt,err){
-    st.gps={status,lat,lon,alt,err:err||null};
-    const gp=el('gpsPill'); gp.textContent='gps: '+status; gp.className='pill '+(status==='ok'?'ok':status==='error'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
-    if(isF(lat)&&isF(lon)) me.setLatLng([lat,lon]);
-    updateAim();
-  }
 
-  // ===== Sensors: Orientation =====
-  function setORI(status, trueH=null, magH=null, pitch=null, err=null){
+  // ===== Sensors: ORI =====
+  function setORI(status,trueH=null,magH=null,pitch=null,err=null){
     st.ori={status,headingTrue:isF(trueH)?n360(trueH):null,headingMag:isF(magH)?n360(magH):null,pitch:isF(pitch)?Math.max(-90,Math.min(90,pitch)):null,err:err||null};
-    const op=el('oriPill'); op.textContent='ori: '+status; op.className='pill '+(status==='listening'?'ok':status==='error'?'bad':status==='denied'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
-    const ht=st.ori.headingTrue, pt=st.ori.pitch;
-    el('hdg').textContent=isF(ht)?Math.round(ht)+'°':'—°';
-    el('pit').textContent=isF(pt)?Math.round(pt)+'°':'—°';
-    el('hdg2').textContent=el('hdg').textContent; el('pit2').textContent=el('pit').textContent;
-    updateAim();
+    const op=$('oriPill'); op.textContent='ori: '+status; op.className='pill '+(status==='listening'?'ok':status==='error'?'bad':status==='denied'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
+    $('hdg').textContent=isF(st.ori.headingTrue)?Math.round(st.ori.headingTrue)+'°':'—°';
+    $('pit').textContent=isF(st.ori.pitch)?Math.round(st.ori.pitch)+'°':'—°';
+    $('hdg2').textContent=$('hdg').textContent; $('pit2').textContent=$('pit').textContent;
+    draw(); updateAim();
   }
-
-  async function startOrientation(){
-    setORI('requesting');
-    const DO=window.DeviceOrientationEvent, DM=window.DeviceMotionEvent;
-    try{
-      if(DM && typeof DM.requestPermission==='function'){ try{ const r=await DM.requestPermission(); if(r!=='granted') { /* continue */ } }catch(_){} }
-      if(DO && typeof DO.requestPermission==='function'){ try{ const r=await DO.requestPermission(); if(r!=='granted'){ setORI('denied',null,null,null,'Orientation permission denied'); return; } }catch(_){ setORI('error',null,null,null,'Orientation permission error'); } }
-      attachOrientation();
-    }catch(_){ attachOrientation(); }
-  }
-
   function attachOrientation(){
     if(window._oriOn)return; window._oriOn=1;
-    // Absolute first (often true heading)
     window.addEventListener('deviceorientationabsolute', onOri, {passive:true});
-    // Fallback general event
     window.addEventListener('deviceorientation', onOri, {passive:true});
     setORI('listening');
   }
-
   function onOri(ev){
-    // true heading preference
-    let trueH=null, magH=null, pitch=null;
-    if(isF(ev.beta)) pitch=ev.beta;
-    if(isF(ev.webkitCompassHeading)){ magH=n360(ev.webkitCompassHeading); }
-    else if(ev.absolute===true && isF(ev.alpha)){ trueH=n360(ev.alpha); }
-    else if(isF(ev.alpha)){ magH=n360(ev.alpha); }
-
-    // derive true if only mag available and we have declination
-    if(!isF(trueH) && isF(magH) && isF(st.decl.value)) trueH=n360(magH + st.decl.value);
-    setORI('listening', trueH, magH, pitch, null);
+    let tH=null,mH=null,p=null;
+    if(isF(ev.beta)) p=ev.beta;
+    if(isF(ev.webkitCompassHeading)) mH=n360(ev.webkitCompassHeading);
+    else if(ev.absolute===true && isF(ev.alpha)) tH=n360(ev.alpha);
+    else if(isF(ev.alpha)) mH=n360(ev.alpha);
+    if(!isF(tH) && isF(mH) && isF(st.decl.value)) tH=n360(mH+st.decl.value);
+    setORI('listening',tH,mH,p,null);
+  }
+  function startOrientation(){
+    setORI('requesting');
+    const DO=window.DeviceOrientationEvent, DM=window.DeviceMotionEvent;
+    try{
+      if(DM && typeof DM.requestPermission==='function'){ try{ DM.requestPermission().then(()=>{}).catch(()=>{}); }catch(_){}} // fire within click
+      if(DO && typeof DO.requestPermission==='function'){
+        DO.requestPermission().then(res=>{ if(res==='granted'){ attachOrientation(); } else { setORI('denied',null,null,null,'Orientation denied'); } })
+        .catch(()=> setORI('error',null,null,null,'Orientation error'));
+      } else { attachOrientation(); }
+    }catch(_){ attachOrientation(); }
   }
 
   // ===== Target / Elevation =====
   function setTarget(lat,lon,alt){
     st.target.lat=isF(+lat)?+lat:null; st.target.lon=isF(+lon)?+lon:null; st.target.alt=isF(+alt)?+alt:null;
-    el('tlat').value=st.target.lat??''; el('tlon').value=st.target.lon??''; el('talt').value=st.target.alt??'';
+    $('tlat').value=st.target.lat??''; $('tlon').value=st.target.lon??''; $('talt').value=st.target.alt??'';
     if(isF(st.target.lat)&&isF(st.target.lon)) tar.setLatLng([st.target.lat,st.target.lon]);
-    updateAim();
+    updateAim(); renderLOS();
   }
   async function fetchElevation(lat,lon){
-    try{
-      const u=`https://api.open-meteo.com/v1/elevation?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`;
-      const r=await fetch(u); if(!r.ok) return;
-      const j=await r.json(); const e=(j?.elevation?.[0]); if(isF(e)) { st.target.alt=+e; el('talt').value=st.target.alt; updateAim(); }
-    }catch(_){}
+    try{const u=`https://api.open-meteo.com/v1/elevation?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}`;
+      const r=await fetch(u); if(!r.ok) return; const j=await r.json(); const e=(j?.elevation?.[0]); if(isF(e)){ st.target.alt=+e; $('talt').value=st.target.alt; updateAim(); }}catch(_){}
   }
 
-  // ===== HUD / Aim =====
+  // ===== Guidance / Aim =====
+  function renderLOS(){
+    if(isF(st.gps.lat)&&isF(st.gps.lon)&&isF(st.target.lat)&&isF(st.target.lon)){
+      los.setLatLngs([[st.gps.lat,st.gps.lon],[st.target.lat,st.target.lon]]);
+    } else { los.setLatLngs([]); }
+  }
   function updateAim(){
-    const gl=st.gps.lat, glon=st.gps.lon, tl=st.target.lat, tln=st.target.lon;
+    const la=st.gps.lat, lo=st.gps.lon, tla=st.target.lat, tlo=st.target.lon;
     const trueH=st.ori.headingTrue, pitch=st.ori.pitch;
-    if(!(isF(gl)&&isF(glon)&&isF(tl)&&isF(tln))){
-      el('dst').textContent='—'; el('brg').textContent='—'; el('preq').textContent='—'; el('off').textContent='—'; return;
+    if(!(isF(la)&&isF(lo)&&isF(tla)&&isF(tlo))){
+      ['dst','dst3d','brg','preq','herr','perr','grade'].forEach(id=>$(id).textContent='—');
+      setLock('—',null); draw(); return;
     }
-    const {dist,brg}=hb(gl,glon,tl,tln);
+    const {dist,brg}=hb(la,lo,tla,tlo);
     const vz=(isF(st.target.alt)&&isF(st.gps.alt))?(st.target.alt-st.gps.alt):null;
-    el('dst').textContent=Math.round(dist);
-    el('brg').textContent=Math.round(brg);
-    el('preq').textContent=isF(vz)?preq(vz,dist).toFixed(1):'—';
-    el('off').textContent=isF(trueH)?Math.round(n360(brg-trueH)):'—';
+    const req=isF(vz)?preq(vz,dist):null;
+    const d3=isF(vz)?Math.sqrt(dist*dist+vz*vz):dist;
+    const grade=isF(vz)?(vz/dist*100):null;
+
+    $('dst').textContent=Math.round(dist);
+    $('dst3d').textContent=isF(d3)?Math.round(d3):'—';
+    $('brg').textContent=Math.round(brg);
+    $('preq').textContent=isF(req)?req.toFixed(1):'—';
+    $('grade').textContent=isF(grade)?grade.toFixed(1)+'%':'—';
+
+    const herr=isF(trueH)?sdiff(brg,trueH):null;
+    const perr=(isF(pitch)&&isF(req))?(req-pitch):null;
+    $('herr').textContent=isF(herr)?herr.toFixed(1):'—';
+    $('perr').textContent=isF(perr)?perr.toFixed(1):'—';
+
+    const okH=isF(herr)&&Math.abs(herr)<=TOL_HEAD;
+    const warnH=isF(herr)&&Math.abs(herr)<=TOL_HEAD*WARN_FACTOR;
+    const okP=isF(perr)&&Math.abs(perr)<=TOL_PITCH;
+    const warnP=isF(perr)&&Math.abs(perr)<=TOL_PITCH*WARN_FACTOR;
+    const state = (okH&&okP)?'ok':((warnH&&warnP)?'warn':'bad');
+    setLock((state==='ok')?'LOCK':'ALIGN', state);
+    draw(brg, req, herr, perr, state);
+  }
+
+  function setLock(text,state){
+    const pill=$('lockPill'); pill.textContent='lock: '+text;
+    pill.className='pill '+(state==='ok'?'ok':state==='warn'?'warn':'');
+    const t=$('lockTxt'); t.textContent=text; t.className='v lock '+(state||'');
+  }
+
+  // ===== Gauges (Canvas) =====
+  const ctxC=$('compass').getContext('2d'), ctxP=$('pitch').getContext('2d');
+  function draw(bearing=null, reqPitch=null, herr=null, perr=null, state=null){
+    drawCompass(ctxC, $('compass').width, $('compass').height, st.ori.headingTrue, bearing, herr, state);
+    drawPitch(ctxP, $('pitch').width, $('pitch').height, st.ori.pitch, reqPitch, perr, state);
+  }
+  function col(state, err, tol){
+    if(state==='ok') return '#22c55e';
+    if(isF(err)){
+      if(Math.abs(err)<=tol) return '#22c55e';
+      if(Math.abs(err)<=tol*WARN_FACTOR) return '#f59e0b';
+    }
+    return '#ef4444';
+  }
+  function drawCompass(ctx,w,h,headingTrue,bearing,herr,state){
+    ctx.clearRect(0,0,w,h);
+    const cx=w/2, cy=h/2, R=Math.min(w,h)*0.42;
+    // ring
+    ctx.strokeStyle='#2a3542'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+    ctx.strokeStyle='#1e2630'; ctx.beginPath(); ctx.arc(cx,cy,R*0.6,0,Math.PI*2); ctx.stroke();
+    // ticks
+    ctx.save(); ctx.translate(cx,cy);
+    for(let i=0;i<36;i++){ const ang=i*10*Math.PI/180; const r1=R, r2=R-(i%3===0?10:5);
+      ctx.beginPath(); ctx.moveTo(r1*Math.sin(ang), -r1*Math.cos(ang)); ctx.lineTo(r2*Math.sin(ang), -r2*Math.cos(ang));
+      ctx.strokeStyle='#334155'; ctx.stroke();
+    }
+    // cardinal
+    const cards=['N','E','S','W'];
+    cards.forEach((t,k)=>{ const ang=k*90*Math.PI/180; ctx.fillStyle='#cbd5e1'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(t, (R-18)*Math.sin(ang), -(R-18)*Math.cos(ang)); });
+    // target bearing tick
+    if(isF(bearing)){
+      const a=n360(bearing)*Math.PI/180;
+      ctx.strokeStyle='#94a3b8'; ctx.lineWidth=3; ctx.beginPath();
+      ctx.moveTo((R-4)*Math.sin(a), -(R-4)*Math.cos(a));
+      ctx.lineTo((R-18)*Math.sin(a), -(R-18)*Math.cos(a)); ctx.stroke();
+    }
+    // heading arrow
+    if(isF(headingTrue)){
+      const a=headingTrue*Math.PI/180;
+      ctx.fillStyle=col(state, herr, TOL_HEAD);
+      ctx.beginPath();
+      const r0=R-30;
+      ctx.moveTo(0,0);
+      ctx.lineTo(r0*Math.sin(a-0.06), -r0*Math.cos(a-0.06));
+      ctx.lineTo((R)*Math.sin(a), -(R)*Math.cos(a));
+      ctx.lineTo(r0*Math.sin(a+0.06), -r0*Math.cos(a+0.06));
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function drawPitch(ctx,w,h,pitch,req,perr,state){
+    ctx.clearRect(0,0,w,h);
+    // bar background
+    ctx.fillStyle='#0c1117'; ctx.fillRect(8,h/2-10,w-16,20);
+    // zero line
+    ctx.strokeStyle='#2a3542'; ctx.beginPath(); const mid=h/2; ctx.moveTo(8,mid); ctx.lineTo(w-8,mid); ctx.stroke();
+    // scale -90..+90 mapped to bar
+    const xFromDeg=d=>{const t=(Math.max(-90,Math.min(90,d))+90)/180; return 8 + t*(w-16); };
+    // req marker
+    if(isF(req)){
+      ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2; const x=xFromDeg(req); ctx.beginPath(); ctx.moveTo(x, mid-16); ctx.lineTo(x, mid+16); ctx.stroke();
+    }
+    // current slider
+    if(isF(pitch)){
+      const x=xFromDeg(pitch); ctx.fillStyle=col(state, perr, TOL_PITCH); ctx.fillRect(x-6, mid-12, 12, 24);
+    }
+    // labels
+    ctx.fillStyle='#cbd5e1'; ctx.font='10px system-ui'; ctx.textAlign='center';
+    [ -60,-30,0,30,60 ].forEach(d=>{ const x=xFromDeg(d); ctx.fillText(String(d), x, mid+20); });
   }
 
   // ===== UI wiring =====
-  // Inputs
-  ['tlat','tlon','talt'].forEach(id=>el(id).addEventListener('change',()=>setTarget(el('tlat').value,el('tlon').value,el('talt').value)));
-  el('fromMap').onclick=()=>{const c=map.getCenter(); setTarget(c.lat,c.lng,el('talt').value); fetchElevation(c.lat,c.lng)};
-  el('saveTarget').onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
+  ['tlat','tlon','talt'].forEach(id=>$(id).addEventListener('change',()=>setTarget($('tlat').value,$('tlon').value,$('talt').value)));
+  $('fromMap').onclick=()=>{const c=map.getCenter(); setTarget(c.lat,c.lng,$('talt').value); fetchElevation(c.lat,c.lng);};
+  $('saveTarget').onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
     const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
     list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
-    localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20)));
-    renderSaved();
-  };
-  el('recenter').onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())) };
+    localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20))); renderSaved(); };
+  $('recenter').onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())) };
 
-  // Quick & Saved
   const quicks=[['Zero',0,0,0],['SF',37.7749,-122.4194,0],['Seattle',47.6062,-122.3321,0],['NYC',40.7128,-74.0060,0]];
-  function renderQuick(){ const q=el('quick'); q.innerHTML=''; quicks.forEach(([n,la,lo,al])=>{const b=document.createElement('button'); b.textContent=n; b.onclick=()=>setTarget(la,lo,al); q.appendChild(b);});}
-  function renderSaved(){ const s=el('saved'); s.innerHTML=''; const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
+  function renderQuick(){ const q=$('quick'); q.innerHTML=''; quicks.forEach(([n,la,lo,al])=>{const b=document.createElement('button'); b.textContent=n; b.onclick=()=>setTarget(la,lo,al); q.appendChild(b);});}
+  function renderSaved(){ const s=$('saved'); s.innerHTML=''; const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
     list.forEach((t,i)=>{const row=document.createElement('div'); row.style.display='flex'; row.style.gap='6px'; row.style.alignItems='center';
-      const btn=document.createElement('button'); btn.textContent='LOAD'; btn.onclick=()=>setTarget(t.lat,t.lon,t.alt);
+      const load=document.createElement('button'); load.textContent='LOAD'; load.onclick=()=>setTarget(t.lat,t.lon,t.alt);
       const del=document.createElement('button'); del.textContent='X'; del.onclick=()=>{ list.splice(i,1); localStorage.setItem('apt_targets',JSON.stringify(list)); renderSaved(); };
-      const meta=document.createElement('div'); meta.textContent=`${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}`;
-      meta.style.fontSize='12px'; meta.style.color='#9fb1c7';
-      row.append(btn,del,meta); s.appendChild(row); });
-  }
+      const meta=document.createElement('div'); meta.textContent=`${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}`; meta.style.fontSize='12px'; meta.style.color='#9fb1c7';
+      row.append(load,del,meta); s.appendChild(row); }); }
 
-  // Start CTA — keep everything synchronous in the click stack for iOS
-  el('start').onclick=async ()=>{
-    try{
-      // Secure context hint
-      const sc = (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1');
-      el('secureHint').textContent = sc ? '' : 'Use HTTPS or localhost for sensor access.';
-      // Request permissions in the same gesture
-      await startOrientation(); // iOS-friendly
-      startGPS();
-      el('start').disabled=true; el('start').textContent='Sensors Enabled';
-    }catch(_){
-      // keep enabled for retry
-      el('start').disabled=false; el('start').textContent='Enable Sensors';
-    }
+  $('start').onclick=()=>{ // keep calls inside click to satisfy iOS
+    const secure=(location.protocol==='https:'||/^localhost|127\.0\.0\.1$/.test(location.hostname));
+    $('secureHint').textContent=secure?'':'Use HTTPS or localhost for sensor access.';
+    startOrientation(); startGPS(); // do not await; requestPermission is called here
+    $('start').disabled=true; $('start').textContent='Sensors Enabled';
   };
 
-  // Initialize
-  renderQuick(); renderSaved();
-  setTarget(null,null,null);
-  (function mirror(){ const m=new MutationObserver(()=>{ el('hdg2').textContent=el('hdg').textContent; el('pit2').textContent=el('pit').textContent;});
-    m.observe(el('hdg'),{childList:true}); m.observe(el('pit'),{childList:true}); })();
-
-  // If already secure, show nice status
-  el('secureHint').textContent = (location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1') ? '' : 'Use HTTPS or localhost for sensors.';
+  // Init
+  renderQuick(); renderSaved(); setTarget(null,null,null); draw();
+  const mo=new MutationObserver(()=>{ $('hdg2').textContent=$('hdg').textContent; $('pit2').textContent=$('pit').textContent;});
+  mo.observe($('hdg'),{childList:true}); mo.observe($('pit'),{childList:true});
 })();
 </script>
 </body>
