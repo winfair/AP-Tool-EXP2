@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 <style>
-  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#9fb1c7;--card:#10151b;--line:#1f2833;--ok:#15a34a;--warn:#f59e0b;--bad:#ef4444}
+  :root{--bg:#0b0c10;--fg:#e5e7eb;--mut:#9fb1c7;--card:#10151b;--line:#1f2833;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
   *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
   .app{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
   header,footer{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#111418;border-block:1px solid var(--line);position:sticky;z-index:10}
@@ -32,7 +32,7 @@
   .mini .item{display:flex;gap:6px;align-items:center}
   .lock{font-weight:800}
   .lock.ok{color:var(--ok)} .lock.warn{color:var(--warn)} .lock.bad{color:var(--bad)}
-  .gauges{display:grid;grid-template-columns: 260px 1fr; gap:12px; align-items:center}
+  .gauges{display:grid;grid-template-columns:260px 1fr;gap:12px;align-items:center}
   canvas{display:block;background:#0f151c;border:1px solid #1f2833;border-radius:10px}
 </style>
 </head>
@@ -41,7 +41,7 @@
   <header>
     <div class="title">AP-Tool</div>
     <button id="start" class="btn">Enable Sensors</button>
-    <div id="secureHint" class="hint" style="margin-left:6px"></div>
+    <div id="secureHint" class="hint"></div>
     <div style="flex:1"></div>
     <div id="gpsPill" class="pill">gps: idle</div>
     <div id="oriPill" class="pill">ori: idle</div>
@@ -50,16 +50,14 @@
   </header>
 
   <main>
-    <div class="card"><div class="hd">Map</div><div class="bd"><div id="map"></div></div></div>
+    <div class="card"><div class="hd">Map</div><div class="bd"><div id="map"></"></div></div></div>
 
     <div class="card">
       <div class="hd">Guidance</div>
       <div class="bd gauges">
         <div>
           <canvas id="compass" width="260" height="260"></canvas>
-          <div class="row" style="margin-top:8px;">
-            <canvas id="pitch" width="260" height="56"></canvas>
-          </div>
+          <div class="row" style="margin-top:8px;"><canvas id="pitch" width="260" height="56"></canvas></div>
         </div>
         <div class="grid">
           <div><div class="k">Heading (true)</div><div class="v" id="hdg">—°</div></div>
@@ -112,8 +110,8 @@
 <script>
 (function(){
   // ===== Math / helpers =====
-  const R=6371000, toRad=d=>d*Math.PI/180, toDeg:r=>r*180/Math.PI, n360=d=>((d%360)+360)%360, isF=x=>Number.isFinite(+x);
-  const sdiff=(a,b)=>{let d=((a-b+540)%360)-180; return d;}; // signed (-180..180) a relative to b
+  const R=6371000, toRad=d=>d*Math.PI/180, toDeg=r=>r*180/Math.PI, n360=d=>((d%360)+360)%360, isF=x=>Number.isFinite(+x);
+  const sdiff=(a,b)=>((a-b+540)%360)-180; // signed (-180..+180)
   const hb=(la1,lo1,la2,lo2)=>{const A=toRad(la1),B=toRad(la2),dA=toRad(la2-la1),dL=toRad(lo2-lo1);
     const a=Math.sin(dA/2)**2+Math.cos(A)*Math.cos(B)*Math.sin(dL/2)**2, c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
     const y=Math.sin(dL)*Math.cos(B), x=Math.cos(A)*Math.sin(B)-Math.sin(A)*Math.cos(B)*Math.cos(dL);
@@ -122,14 +120,12 @@
   const gkey=(lat,lon)=>[Math.round(lat*4)/4,Math.round(lon*4)/4].join(',');
 
   // ===== Tolerances =====
-  const TOL_HEAD=3;    // degrees
-  const TOL_PITCH=2;   // degrees
-  const WARN_FACTOR=2; // x tolerance → warn
+  const TOL_HEAD=3, TOL_PITCH=2, WARN_X=2;
 
   // ===== State =====
   const st={
     gps:{status:'idle',lat:null,lon:null,alt:null,err:null},
-    ori:{status:'idle',headingTrue:null,headingMag:null,pitch:null,err:null},
+    ori:{status:'idle',headingTrue:null,headingMag:null,pitch:null,err:null,events:0,attached:false},
     decl:{value:null,source:null},
     target:{lat:null,lon:null,alt:null},
     ui:{firstRecenter:false}
@@ -169,7 +165,7 @@
   }
   function maybeDecl(){ if(isF(st.gps.lat)&&isF(st.gps.lon)){ const k=gkey(st.gps.lat,st.gps.lon); if(k!==lastDecKey||st.decl.value==null){ lastDecKey=k; fetchDecl(st.gps.lat,st.gps.lon); } } }
 
-  // ===== Sensors: GPS =====
+  // ===== GPS =====
   function setGPS(status,lat,lon,alt,err){
     st.gps={status,lat,lon,alt,err:err||null};
     const pill=$('gpsPill'); pill.textContent='gps: '+status; pill.className='pill '+(status==='ok'?'ok':status==='error'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
@@ -188,38 +184,47 @@
     }catch(e){ setGPS('error',null,null,null,e?.message||'GPS error') }
   }
 
-  // ===== Sensors: ORI =====
+  // ===== Orientation =====
   function setORI(status,trueH=null,magH=null,pitch=null,err=null){
-    st.ori={status,headingTrue:isF(trueH)?n360(trueH):null,headingMag:isF(magH)?n360(magH):null,pitch:isF(pitch)?Math.max(-90,Math.min(90,pitch)):null,err:err||null};
-    const op=$('oriPill'); op.textContent='ori: '+status; op.className='pill '+(status==='listening'?'ok':status==='error'?'bad':status==='denied'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
+    st.ori.status=status;
+    if(isF(trueH)) st.ori.headingTrue=n360(trueH); if(isF(magH)) st.ori.headingMag=n360(magH);
+    st.ori.pitch=isF(pitch)?Math.max(-90,Math.min(90,pitch)):st.ori.pitch;
+    st.ori.err=err||null;
+    const op=$('oriPill'); op.textContent='ori: '+status; op.className='pill '+(status==='receiving'?'ok':status==='attached'?'warn':status==='error'?'bad':status==='denied'?'bad':status==='unsupported'?'bad':status==='requesting'?'warn':'');
     $('hdg').textContent=isF(st.ori.headingTrue)?Math.round(st.ori.headingTrue)+'°':'—°';
     $('pit').textContent=isF(st.ori.pitch)?Math.round(st.ori.pitch)+'°':'—°';
     $('hdg2').textContent=$('hdg').textContent; $('pit2').textContent=$('pit').textContent;
     draw(); updateAim();
   }
   function attachOrientation(){
-    if(window._oriOn)return; window._oriOn=1;
+    if(st.ori.attached) return;
+    st.ori.attached=true;
     window.addEventListener('deviceorientationabsolute', onOri, {passive:true});
     window.addEventListener('deviceorientation', onOri, {passive:true});
-    setORI('listening');
+    setORI('attached'); // only “receiving” once we see events
+    // Fallback: if no events after 2s, mark unsupported
+    setTimeout(()=>{ if(st.ori.events===0 && st.ori.status!=='receiving') setORI('unsupported',null,null,null,st.ori.err); }, 2000);
   }
   function onOri(ev){
+    st.ori.events++;
     let tH=null,mH=null,p=null;
     if(isF(ev.beta)) p=ev.beta;
     if(isF(ev.webkitCompassHeading)) mH=n360(ev.webkitCompassHeading);
     else if(ev.absolute===true && isF(ev.alpha)) tH=n360(ev.alpha);
     else if(isF(ev.alpha)) mH=n360(ev.alpha);
     if(!isF(tH) && isF(mH) && isF(st.decl.value)) tH=n360(mH+st.decl.value);
-    setORI('listening',tH,mH,p,null);
+    setORI('receiving',tH,mH,p,null);
+    // Success → reflect on CTA
+    markStartSuccessful();
   }
-  function startOrientation(){
+  function startOrientationPermission(){
     setORI('requesting');
     const DO=window.DeviceOrientationEvent, DM=window.DeviceMotionEvent;
     try{
       if(DM && typeof DM.requestPermission==='function'){ try{ DM.requestPermission().then(()=>{}).catch(()=>{}); }catch(_){}} // fire within click
       if(DO && typeof DO.requestPermission==='function'){
         DO.requestPermission().then(res=>{ if(res==='granted'){ attachOrientation(); } else { setORI('denied',null,null,null,'Orientation denied'); } })
-        .catch(()=> setORI('error',null,null,null,'Orientation error'));
+          .catch(()=> setORI('error',null,null,null,'Orientation error'));
       } else { attachOrientation(); }
     }catch(_){ attachOrientation(); }
   }
@@ -267,12 +272,12 @@
     $('perr').textContent=isF(perr)?perr.toFixed(1):'—';
 
     const okH=isF(herr)&&Math.abs(herr)<=TOL_HEAD;
-    const warnH=isF(herr)&&Math.abs(herr)<=TOL_HEAD*WARN_FACTOR;
+    const warnH=isF(herr)&&Math.abs(herr)<=TOL_HEAD*WARN_X;
     const okP=isF(perr)&&Math.abs(perr)<=TOL_PITCH;
-    const warnP=isF(perr)&&Math.abs(perr)<=TOL_PITCH*WARN_FACTOR;
-    const state = (okH&&okP)?'ok':((warnH&&warnP)?'warn':'bad');
-    setLock((state==='ok')?'LOCK':'ALIGN', state);
-    draw(brg, req, herr, perr, state);
+    const warnP=isF(perr)&&Math.abs(perr)<=TOL_PITCH*WARN_X;
+    const state=(okH&&okP)?'ok':((warnH&&warnP)?'warn':'bad');
+    setLock((state==='ok')?'LOCK':'ALIGN',state);
+    draw(brg,req,herr,perr,state);
   }
 
   function setLock(text,state){
@@ -281,7 +286,7 @@
     const t=$('lockTxt'); t.textContent=text; t.className='v lock '+(state||'');
   }
 
-  // ===== Gauges (Canvas) =====
+  // ===== Gauges =====
   const ctxC=$('compass').getContext('2d'), ctxP=$('pitch').getContext('2d');
   function draw(bearing=null, reqPitch=null, herr=null, perr=null, state=null){
     drawCompass(ctxC, $('compass').width, $('compass').height, st.ori.headingTrue, bearing, herr, state);
@@ -291,74 +296,44 @@
     if(state==='ok') return '#22c55e';
     if(isF(err)){
       if(Math.abs(err)<=tol) return '#22c55e';
-      if(Math.abs(err)<=tol*WARN_FACTOR) return '#f59e0b';
+      if(Math.abs(err)<=tol*WARN_X) return '#f59e0b';
     }
     return '#ef4444';
   }
   function drawCompass(ctx,w,h,headingTrue,bearing,herr,state){
     ctx.clearRect(0,0,w,h);
     const cx=w/2, cy=h/2, R=Math.min(w,h)*0.42;
-    // ring
     ctx.strokeStyle='#2a3542'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
     ctx.strokeStyle='#1e2630'; ctx.beginPath(); ctx.arc(cx,cy,R*0.6,0,Math.PI*2); ctx.stroke();
-    // ticks
     ctx.save(); ctx.translate(cx,cy);
     for(let i=0;i<36;i++){ const ang=i*10*Math.PI/180; const r1=R, r2=R-(i%3===0?10:5);
       ctx.beginPath(); ctx.moveTo(r1*Math.sin(ang), -r1*Math.cos(ang)); ctx.lineTo(r2*Math.sin(ang), -r2*Math.cos(ang));
       ctx.strokeStyle='#334155'; ctx.stroke();
     }
-    // cardinal
-    const cards=['N','E','S','W'];
-    cards.forEach((t,k)=>{ const ang=k*90*Math.PI/180; ctx.fillStyle='#cbd5e1'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(t, (R-18)*Math.sin(ang), -(R-18)*Math.cos(ang)); });
-    // target bearing tick
-    if(isF(bearing)){
-      const a=n360(bearing)*Math.PI/180;
-      ctx.strokeStyle='#94a3b8'; ctx.lineWidth=3; ctx.beginPath();
-      ctx.moveTo((R-4)*Math.sin(a), -(R-4)*Math.cos(a));
-      ctx.lineTo((R-18)*Math.sin(a), -(R-18)*Math.cos(a)); ctx.stroke();
-    }
-    // heading arrow
-    if(isF(headingTrue)){
-      const a=headingTrue*Math.PI/180;
-      ctx.fillStyle=col(state, herr, TOL_HEAD);
-      ctx.beginPath();
-      const r0=R-30;
-      ctx.moveTo(0,0);
-      ctx.lineTo(r0*Math.sin(a-0.06), -r0*Math.cos(a-0.06));
-      ctx.lineTo((R)*Math.sin(a), -(R)*Math.cos(a));
-      ctx.lineTo(r0*Math.sin(a+0.06), -r0*Math.cos(a+0.06));
-      ctx.closePath(); ctx.fill();
-    }
+    ['N','E','S','W'].forEach((t,k)=>{ const ang=k*90*Math.PI/180; ctx.fillStyle='#cbd5e1'; ctx.font='14px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(t,(R-18)*Math.sin(ang),-(R-18)*Math.cos(ang)); });
+    if(isF(bearing)){ const a=n360(bearing)*Math.PI/180; ctx.strokeStyle='#94a3b8'; ctx.lineWidth=3; ctx.beginPath();
+      ctx.moveTo((R-4)*Math.sin(a),-(R-4)*Math.cos(a)); ctx.lineTo((R-18)*Math.sin(a),-(R-18)*Math.cos(a)); ctx.stroke(); }
+    if(isF(headingTrue)){ const a=headingTrue*Math.PI/180; ctx.fillStyle=col(state,herr,TOL_HEAD); ctx.beginPath();
+      const r0=R-30; ctx.moveTo(0,0); ctx.lineTo(r0*Math.sin(a-0.06),-r0*Math.cos(a-0.06));
+      ctx.lineTo(R*Math.sin(a),-R*Math.cos(a)); ctx.lineTo(r0*Math.sin(a+0.06),-r0*Math.cos(a+0.06)); ctx.closePath(); ctx.fill(); }
     ctx.restore();
   }
   function drawPitch(ctx,w,h,pitch,req,perr,state){
     ctx.clearRect(0,0,w,h);
-    // bar background
     ctx.fillStyle='#0c1117'; ctx.fillRect(8,h/2-10,w-16,20);
-    // zero line
     ctx.strokeStyle='#2a3542'; ctx.beginPath(); const mid=h/2; ctx.moveTo(8,mid); ctx.lineTo(w-8,mid); ctx.stroke();
-    // scale -90..+90 mapped to bar
-    const xFromDeg=d=>{const t=(Math.max(-90,Math.min(90,d))+90)/180; return 8 + t*(w-16); };
-    // req marker
-    if(isF(req)){
-      ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2; const x=xFromDeg(req); ctx.beginPath(); ctx.moveTo(x, mid-16); ctx.lineTo(x, mid+16); ctx.stroke();
-    }
-    // current slider
-    if(isF(pitch)){
-      const x=xFromDeg(pitch); ctx.fillStyle=col(state, perr, TOL_PITCH); ctx.fillRect(x-6, mid-12, 12, 24);
-    }
-    // labels
-    ctx.fillStyle='#cbd5e1'; ctx.font='10px system-ui'; ctx.textAlign='center';
-    [ -60,-30,0,30,60 ].forEach(d=>{ const x=xFromDeg(d); ctx.fillText(String(d), x, mid+20); });
+    const xFrom=d=>{const t=(Math.max(-90,Math.min(90,d))+90)/180; return 8+t*(w-16); };
+    if(isF(req)){ ctx.strokeStyle='#94a3b8'; ctx.lineWidth=2; const x=xFrom(req); ctx.beginPath(); ctx.moveTo(x,mid-16); ctx.lineTo(x,mid+16); ctx.stroke(); }
+    if(isF(pitch)){ const x=xFrom(pitch); ctx.fillStyle=col(state,perr,TOL_PITCH); ctx.fillRect(x-6,mid-12,12,24); }
+    ctx.fillStyle='#cbd5e1'; ctx.font='10px system-ui'; ctx.textAlign='center'; [-60,-30,0,30,60].forEach(d=>{const x=xFrom(d); ctx.fillText(String(d),x,mid+20);});
   }
 
   // ===== UI wiring =====
   ['tlat','tlon','talt'].forEach(id=>$(id).addEventListener('change',()=>setTarget($('tlat').value,$('tlon').value,$('talt').value)));
   $('fromMap').onclick=()=>{const c=map.getCenter(); setTarget(c.lat,c.lng,$('talt').value); fetchElevation(c.lat,c.lng);};
   $('saveTarget').onclick=()=>{ if(!(isF(st.target.lat)&&isF(st.target.lon))) return;
-    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]');
-    list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
+    const list=JSON.parse(localStorage.getItem('apt_targets')||'[]'); list.unshift({name:`T@${new Date().toLocaleTimeString()}`,lat:st.target.lat,lon:st.target.lon,alt:st.target.alt??null});
     localStorage.setItem('apt_targets',JSON.stringify(list.slice(0,20))); renderSaved(); };
   $('recenter').onclick=()=>{ if(isF(st.gps.lat)&&isF(st.gps.lon)) map.setView([st.gps.lat,st.gps.lon],Math.max(15,map.getZoom())) };
 
@@ -371,11 +346,17 @@
       const meta=document.createElement('div'); meta.textContent=`${(t.name||'Target')} · ${(+t.lat).toFixed(4)}, ${(+t.lon).toFixed(4)} · ${isF(t.alt)?(+t.alt).toFixed(0)+' m':'—'}`; meta.style.fontSize='12px'; meta.style.color='#9fb1c7';
       row.append(load,del,meta); s.appendChild(row); }); }
 
-  $('start').onclick=()=>{ // keep calls inside click to satisfy iOS
-    const secure=(location.protocol==='https:'||/^localhost|127\.0\.0\.1$/.test(location.hostname));
+  // ===== CTA: keep calls inside this click (iOS gesture) =====
+  function markStartSuccessful(){
+    const b=$('start');
+    b.textContent='Sensors Enabled'; // keep enabled for manual retry if needed
+  }
+  $('start').onclick=()=>{ // one synchronous gesture
+    const secure=(location.protocol==='https:'||/^(localhost|127\.0\.0\.1)$/i.test(location.hostname));
     $('secureHint').textContent=secure?'':'Use HTTPS or localhost for sensor access.';
-    startOrientation(); startGPS(); // do not await; requestPermission is called here
-    $('start').disabled=true; $('start').textContent='Sensors Enabled';
+    try{ startOrientationPermission(); }catch(_){}
+    try{ startGPS(); }catch(_){}
+    $('start').textContent='Enabling…'; // will flip to Enabled when first ori event arrives
   };
 
   // Init
